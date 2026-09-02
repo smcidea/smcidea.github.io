@@ -3400,6 +3400,12 @@ function ssGetSector(sym) { return SS_SECTOR_MAP[sym.toUpperCase()] || 'Unknown'
 
 let ssAllResults = [], ssActiveFilter = 'ALL';
 
+function openSMCChartSymbol(symbol) {
+  const name = String(symbol || '').trim().toUpperCase();
+  if (!name) return;
+  try { window.parent.postMessage({ type: 'smc-open-symbol', symbol: name }, '*'); } catch (_) {}
+}
+
 function ssParseLines(t) { return t.split('\\n').map(l => l.trim()).filter(Boolean); }
 
 function ssSectorTag(sector) {
@@ -3418,9 +3424,10 @@ function ssHistoryTableRow(sym, freq, sector, chartHref, idx) {
   return \`<tr>
     <td style="padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-light)">\${idx + 1}</td>
     <td style="padding:10px 16px">
-      <a class="ss-stock-link" href="\${chartHref}" target="_blank" rel="noopener">\${sym}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      </a>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1">
+        <a class="ss-stock-link" href="#" data-symbol="\${sym}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" title="Open \${sym} in SMC Chart">\${sym} <small style="font-size:8px;color:#60a5fa">SMC</small></a>
+        <a class="ss-stock-link" href="\${chartHref}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8" title="Open \${sym} in NepseAlpha">\${sym} <small style="font-size:8px;color:#fbbf24">NepseAlpha ↗</small></a>
+      </div>
     </td>
     <td style="padding:10px 16px;text-align:right"><span class="ss-freq-badge \${fc}">\${freq}</span></td>
     <td style="padding:10px 16px"><span class="ss-sector-tag" style="background:\${sc.bg};color:\${sc.color};border:1px solid \${sc.border}">\${sector}</span></td>
@@ -3466,10 +3473,10 @@ function ssRenderResults() {
   count.textContent = \`\${results.length} match\${results.length !== 1 ? 'es' : ''}\`;
   body.innerHTML = results.map((r, i) => \`<tr>
     <td class="ss-rank-num">\${i + 1}</td>
-    <td><a class="ss-stock-link" href="https://nepsealpha.com/trading/chart?symbol=\${r.symbol}" target="_blank" rel="noopener">
-      \${r.symbol}
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-    </a></td>
+    <td><div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1">
+      <a class="ss-stock-link" href="#" data-symbol="\${r.symbol}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" title="Open \${r.symbol} in SMC Chart">\${r.symbol} <small style="font-size:8px;color:#60a5fa">SMC</small></a>
+      <a class="ss-stock-link" href="https://nepsealpha.com/trading/chart?symbol=\${encodeURIComponent(r.symbol)}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8" title="Open \${r.symbol} in NepseAlpha">\${r.symbol} <small style="font-size:8px;color:#fbbf24">NepseAlpha ↗</small></a>
+    </div></td>
     <td class="right">\${ssFreqBadge(r.freq)}</td>
     <td>\${ssSectorTag(r.sector)}</td>
   </tr>\`).join('');
@@ -12150,6 +12157,14 @@ function fsShow(i){
     .alert.error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
     .alert.error svg { color: var(--danger); flex-shrink: 0; margin-top: 1px; }
     .loading-wrap { margin-top: 20px; }
+    #btn-scan { position:relative; min-width:170px; transition:opacity .18s ease, transform .18s ease, background .18s ease; }
+    #btn-scan .scan-spinner { width:15px; height:15px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:outperformerScanSpin .72s linear infinite; display:none; flex:0 0 auto; }
+    #btn-scan.is-scanning { opacity:.82; cursor:wait; }
+    #btn-scan.is-scanning .scan-spinner { display:inline-block; }
+    #btn-scan.is-scanning .scan-default-label { display:none; }
+    #btn-scan .scan-loading-label { display:none; }
+    #btn-scan.is-scanning .scan-loading-label { display:inline; }
+    @keyframes outperformerScanSpin { to { transform:rotate(360deg); } }
     .skel {
       background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
       background-size: 200%; border-radius: 10px; animation: shimmer 1.5s infinite;
@@ -12157,13 +12172,20 @@ function fsShow(i){
     @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
     /* ── BAR CHART ── */
-    .chart-inner { overflow-x: auto; padding-bottom: 8px; }
-    .chart-bars  { display: flex; gap: 10px; align-items: flex-end; padding: 16px 0 4px; min-width: fit-content; }
-    .bar-group   { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .chart-inner { overflow-x: auto; padding: 8px 0 12px; position:relative; }
+    .chart-bars  { display: flex; gap: 12px; align-items: flex-end; padding: 24px 12px 6px; min-width: fit-content; min-height: 220px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 43px, rgba(148,163,184,.10) 44px, transparent 45px); border-bottom: 1px solid var(--border); }
+    .bar-group   { display: flex; flex-direction: column; align-items: center; gap: 5px; position:relative; padding:0 2px; }
+    .bar-group:hover { background: rgba(148,163,184,.08); border-radius: 7px; }
     .bar-cols    { display: flex; gap: 3px; align-items: flex-end; }
-    .bar { width: 18px; border-radius: 3px 3px 0 0; min-height: 3px; transition: opacity 0.15s; }
-    .bar:hover { opacity: 0.8; }
-    .bar-label { font-size: 10px; font-family: var(--mono); color: var(--text-muted); text-align: center; white-space: nowrap; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+    .bar { width: 19px; border-radius: 3px 3px 0 0; min-height: 3px; transition: opacity 0.15s, filter 0.15s; position:relative; }
+    .bar:hover { opacity: 0.88; filter:brightness(1.18); }
+    .bar-value { font-size: 8px; font-family: var(--mono); color: var(--text-muted); white-space:nowrap; transform:translateY(-2px); }
+    .bar-label { font-size: 10px; font-family: var(--mono); color: var(--text-muted); text-align: center; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+    .chart-tooltip { position:fixed; z-index:9999; display:none; min-width:225px; max-width:290px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:rgba(15,23,42,.97); box-shadow:0 10px 28px rgba(0,0,0,.35); color:var(--text); pointer-events:none; font-size:11px; line-height:1.55; }
+    .chart-tooltip strong { color:var(--primary); font-family:var(--mono); font-size:13px; }
+    .chart-tooltip .tt-row { display:flex; justify-content:space-between; gap:16px; border-top:1px solid rgba(148,163,184,.14); padding-top:3px; margin-top:3px; }
+    .chart-tooltip .tt-label { color:var(--text-muted); }
+    .chart-tooltip .tt-val { font-family:var(--mono); font-weight:700; }
     .chart-legend { display: flex; gap: 16px; padding: 8px 0; flex-wrap: wrap; }
     .legend-item  { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
     .legend-dot   { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
@@ -12231,8 +12253,10 @@ function fsShow(i){
           <input type="date" id="scan-end" />
         </div>
         <button onclick="runScan()" id="btn-scan">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Scan Outperformers
+          <span class="scan-spinner" aria-hidden="true"></span>
+          <svg class="scan-default-label" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span class="scan-default-label">Scan Outperformers</span>
+          <span class="scan-loading-label">Scanning…</span>
         </button>
       </div>
     </div>
@@ -12275,6 +12299,10 @@ function fsShow(i){
         <div class="chart-inner"><div class="chart-bars" id="chart-bars"></div></div>
       </div>
 
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 8px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Outperformer Results</div>
+        <button id="scan-copy-symbols" class="btn-secondary" onclick="copyOutperformerSymbols('scan',this)" title="Copy all outperformer symbols one per line" style="padding:7px 12px;">📋 Copy symbols</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -12459,6 +12487,10 @@ function fsShow(i){
         </div>
       </div>
 
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 8px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Multi-Stock Results</div>
+        <button id="multi-copy-symbols" class="btn-secondary" onclick="copyOutperformerSymbols('multi',this)" title="Copy all checked symbols one per line" style="padding:7px 12px;">📋 Copy symbols</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -12486,6 +12518,16 @@ function fsShow(i){
 
 <script>
   const GAS_URL = "https://script.google.com/macros/s/AKfycbzCdRoOX-ERYA9lCMshT-dDsB4k3eFbA03fm5dSbmYc7bzB4c-XJEkk77R2PwEv9N1Z/exec";
+  let _outperformerScanRows = [];
+  let _outperformerMultiRows = [];
+
+  // Send a selected Outperformer symbol to the root page so it can open
+  // the embedded SMC Chart without leaving this application.
+  function openSMCChartSymbol(symbol) {
+    const name = String(symbol || '').trim().toUpperCase();
+    if (!name) return;
+    try { window.parent.postMessage({ type: 'smc-open-symbol', symbol: name }, '*'); } catch (_) {}
+  }
 
   // ── Stock Cap Lookup ─────────────────────────────────────────────────────
   const CAP_DATA = {
@@ -12567,7 +12609,9 @@ function fsShow(i){
     document.getElementById("scan-error").style.display   = "none";
     document.getElementById("scan-loading").style.display = "block";
     document.getElementById("scan-results").style.display = "none";
-    document.getElementById("btn-scan").disabled = true;
+    const scanBtn = document.getElementById("btn-scan");
+    scanBtn.disabled = true;
+    scanBtn.classList.add("is-scanning");
     try {
       const d = await callGAS({ action: "scan", startDate: sd, endDate: ed });
       if (d.status === "error") throw new Error(d.message || "Scan failed");
@@ -12577,11 +12621,16 @@ function fsShow(i){
       document.getElementById("scan-error").style.display = "flex";
     } finally {
       document.getElementById("scan-loading").style.display = "none";
-      document.getElementById("btn-scan").disabled = false;
+      const scanBtn = document.getElementById("btn-scan");
+      scanBtn.disabled = false;
+      scanBtn.classList.remove("is-scanning");
     }
   }
 
   function renderScan(d) {
+    _outperformerScanRows = Array.isArray(d.results) ? d.results.slice() : [];
+    const scanCopyBtn = document.getElementById('scan-copy-symbols');
+    if (scanCopyBtn) { scanCopyBtn.disabled = !_outperformerScanRows.length; scanCopyBtn.textContent = _outperformerScanRows.length ? '📋 Copy ' + _outperformerScanRows.length + ' symbols' : '📋 Copy symbols'; }
     document.getElementById("stat-period").textContent = d.startDate + "\\n→  " + d.endDate;
     const ne = document.getElementById("stat-nepse");
     ne.textContent = fmtPct(d.X); ne.className = "stat-value " + pctCls(d.X);
@@ -12599,7 +12648,7 @@ function fsShow(i){
         const tr = document.createElement("tr");
         tr.innerHTML = \`
           <td><span class="rank-badge \${i < 3 ? "top" : ""}">\${i+1}</span></td>
-          <td><a class="sym-badge" href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${r.symbol}" target="_blank" rel="noopener">\${r.symbol}</a></td>
+          <td><div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1;"><a href="#" data-symbol="\${r.symbol}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" class="sym-badge" title="Open \${r.symbol} in SMC Chart">\${r.symbol} <small style="font-size:8px;color:#60a5fa;">SMC</small></a><a href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${encodeURIComponent(r.symbol)}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8;" title="Open \${r.symbol} in NepseAlpha">\${r.symbol} <small style="font-size:8px;color:#fbbf24;">NepseAlpha ↗</small></a></div></td>
           <td>\${capBadgeHtml(r.symbol)}</td>
           <td style="color:var(--text-muted);font-size:12px">\${r.sector}</td>
           <td style="color:var(--text-muted);font-size:12px">\${r.subIndexName}</td>
@@ -12614,19 +12663,52 @@ function fsShow(i){
     document.getElementById("scan-results").style.display = "block";
   }
 
+  function copyOutperformerSymbols(kind, btn) {
+    const rows = kind === 'multi' ? _outperformerMultiRows : _outperformerScanRows;
+    const symbols = [...new Set(rows.map(r => String(r && (r.symbol || r.sym) || '').trim().toUpperCase()).filter(Boolean))];
+    if (!symbols.length) { if (btn) { const old=btn.textContent; btn.textContent='Nothing to copy'; setTimeout(()=>btn.textContent=old,1600); } return; }
+    const text = symbols.join('\\n');
+    const copied = () => { if (!btn) return; const old=btn.textContent; btn.textContent='✅ Copied '+symbols.length+'!'; btn.classList.add('copied'); setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied');},1800); };
+    const fallback = () => { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try { document.execCommand('copy'); copied(); } finally { document.body.removeChild(ta); } };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(copied).catch(fallback); else fallback();
+  }
+
   function renderChart(rows) {
     const c = document.getElementById("chart-bars"); c.innerHTML = "";
-    const maxV = Math.max(...rows.flatMap(r => [Math.abs(r.X), Math.abs(r.Y), Math.abs(r.Z)]), 1);
+    const host = c.parentElement;
+    let tip = host.querySelector('.chart-tooltip');
+    if (!tip) { tip = document.createElement('div'); tip.className = 'chart-tooltip'; host.appendChild(tip); }
+    const maxV = Math.max(...rows.flatMap(r => [Math.abs(Number(r.X)||0), Math.abs(Number(r.Y)||0), Math.abs(Number(r.Z)||0)]), 1);
+    const showTip = (r, ev) => {
+      const sectorEdge = (Number(r.Z)||0) - (Number(r.Y)||0);
+      const marketEdge = (Number(r.Z)||0) - (Number(r.X)||0);
+      tip.innerHTML = '<strong>' + String(r.symbol || '') + '</strong>' +
+        '<div style="color:var(--text-muted);margin:2px 0 5px;">' + String(r.sector || '') + '</div>' +
+        '<div class="tt-row"><span class="tt-label">NEPSE Index</span><span class="tt-val">' + fmtPct(r.X) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Sector / Sub-index</span><span class="tt-val">' + fmtPct(r.Y) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Stock return</span><span class="tt-val" style="color:#10b981">' + fmtPct(r.Z) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Vs sector</span><span class="tt-val">' + fmtPct(sectorEdge) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Vs market</span><span class="tt-val">' + fmtPct(marketEdge) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Price</span><span class="tt-val">' + fmt2(r.startPrice) + ' → ' + fmt2(r.endPrice) + '</span></div>';
+      tip.style.display='block';
+      tip.style.left=Math.min(ev.clientX+14, window.innerWidth-305)+'px';
+      tip.style.top=Math.min(ev.clientY+14, window.innerHeight-190)+'px';
+    };
     rows.forEach(r => {
       const g = document.createElement("div"); g.className = "bar-group";
       const cols = document.createElement("div"); cols.className = "bar-cols";
-      [[r.X,"#64748b"],[r.Y,"#3b82f6"],[r.Z,"#10b981"]].forEach(([v, col]) => {
+      [[r.X,'#64748b','#cbd5e1'],[r.Y,'#3b82f6','#93c5fd'],[r.Z,'#10b981','#6ee7b7']].forEach(([v, positiveCol, negativeCol]) => {
+        const num = Number(v) || 0;
+        const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.flexDirection='column'; wrap.style.alignItems='center';
+        const value = document.createElement('div'); value.className='bar-value'; value.textContent=fmtPct(num); value.style.color = num < 0 ? negativeCol : positiveCol;
         const b = document.createElement("div"); b.className = "bar";
-        b.style.height = Math.max(Math.abs(v) / maxV * 160, 3) + "px";
-        b.style.background = col; b.title = fmtPct(v); cols.appendChild(b);
+        b.style.height = Math.max(Math.abs(num) / maxV * 160, 3) + "px";
+        b.style.background = num < 0 ? negativeCol : positiveCol;
+        b.style.boxShadow = '0 0 0 1px ' + (num < 0 ? negativeCol : positiveCol) + '55';
+        b.title = fmtPct(num); wrap.appendChild(value); wrap.appendChild(b); cols.appendChild(wrap);
       });
       const lbl = document.createElement("div"); lbl.className = "bar-label"; lbl.textContent = r.symbol;
-      g.appendChild(cols); g.appendChild(lbl); c.appendChild(g);
+      g.appendChild(cols); g.appendChild(lbl); g.addEventListener('mouseenter', ev=>showTip(r,ev)); g.addEventListener('mousemove', ev=>showTip(r,ev)); g.addEventListener('mouseleave', ()=>{tip.style.display='none';}); c.appendChild(g);
     });
   }
 
@@ -12664,7 +12746,7 @@ function fsShow(i){
     const v = VM[d.verdict] || { cls: "vd-under", label: d.verdict };
     const card = document.getElementById("verdict-card");
     card.className = "verdict-card " + v.cls;
-    document.getElementById("v-sym").innerHTML = \`<a href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${d.symbol}" target="_blank" rel="noopener">\${d.symbol}</a>\`;
+    document.getElementById("v-sym").innerHTML = \`<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1;"><a href="#" data-symbol="\${d.symbol}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" title="Open \${d.symbol} in SMC Chart">\${d.symbol} <small style="font-size:9px;color:#60a5fa;">SMC</small></a><a href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${encodeURIComponent(d.symbol)}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8;" title="Open \${d.symbol} in NepseAlpha">\${d.symbol} <small style="font-size:9px;color:#fbbf24;">NepseAlpha ↗</small></a></div>\`;
     document.getElementById("v-badge").textContent  = v.label;
     const capLabel = capText(d.symbol);
     document.getElementById("v-meta").innerHTML = (capLabel ? \`\${capBadgeHtml(d.symbol)}&ensp;\` : "") + d.sector + "  ·  " + d.subIndexName;
@@ -12795,6 +12877,9 @@ function fsShow(i){
 
     // Sort ok rows by Stock % (Z) descending
     okRows.sort((a, b) => b.Z - a.Z);
+    _outperformerMultiRows = okRows.slice();
+    const multiCopyBtn = document.getElementById('multi-copy-symbols');
+    if (multiCopyBtn) { multiCopyBtn.disabled = !_outperformerMultiRows.length; multiCopyBtn.textContent = _outperformerMultiRows.length ? '📋 Copy ' + _outperformerMultiRows.length + ' symbols' : '📋 Copy symbols'; }
 
     // Summary counts
     const counts = { OUTPERFORMER: 0, BEATS_SECTOR_ONLY: 0, BEATS_MARKET_ONLY: 0, UNDERPERFORMER: 0 };
@@ -12818,7 +12903,7 @@ function fsShow(i){
       if (d.verdict === "OUTPERFORMER") tr.style.background = "rgba(16,185,129,0.04)";
       tr.innerHTML = \`
         <td><span class="rank-badge \${d.verdict === "OUTPERFORMER" && rank <= 3 ? "top" : ""}">\${rank}</span></td>
-        <td><a class="sym-badge" href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${d.symbol}" target="_blank" rel="noopener">\${d.symbol}</a></td>
+        <td><div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1;"><a href="#" data-symbol="\${d.symbol}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" class="sym-badge" title="Open \${d.symbol} in SMC Chart">\${d.symbol} <small style="font-size:8px;color:#60a5fa;">SMC</small></a><a href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${encodeURIComponent(d.symbol)}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8;" title="Open \${d.symbol} in NepseAlpha">\${d.symbol} <small style="font-size:8px;color:#fbbf24;">NepseAlpha ↗</small></a></div></td>
         <td>\${capBadgeHtml(d.symbol)}</td>
         <td style="color:var(--text-muted);font-size:12px">\${d.sector || "-"}</td>
         <td style="color:var(--text-muted);font-size:12px">\${d.subIndexName || "-"}</td>
@@ -12837,7 +12922,7 @@ function fsShow(i){
       tr.style.opacity = "0.55";
       tr.innerHTML = \`
         <td><span class="rank-badge">—</span></td>
-        <td><a class="sym-badge" href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${r.sym}" target="_blank" rel="noopener" style="opacity:0.5">\${r.sym}</a></td>
+        <td><div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.1;"><a href="#" data-symbol="\${r.sym}" onclick="event.preventDefault();openSMCChartSymbol(this.dataset.symbol)" class="sym-badge" title="Open \${r.sym} in SMC Chart" style="opacity:0.5">\${r.sym} <small style="font-size:8px;color:#60a5fa;">SMC</small></a><a href="https://nepsealpha.com/trading/chart?interval=1D&symbol=\${encodeURIComponent(r.sym)}" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8;opacity:0.7;" title="Open \${r.sym} in NepseAlpha">\${r.sym} <small style="font-size:8px;color:#fbbf24;">NepseAlpha ↗</small></a></div></td>
         <td>\${capBadgeHtml(r.sym)}</td>
         <td colspan="7" style="color:var(--danger);font-size:12px">\${r.error || "Unknown error"}</td>
         <td>\${verdictPill("ERROR")}</td>\`;
