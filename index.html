@@ -15534,6 +15534,14 @@ syncRiskRs();
         .bsl-sig-btn.active { background:rgba(163,230,53,0.12);border-color:#a3e635;color:#a3e635; }
         .bsl-wr-btn.active  { background:rgba(249,115,22,0.12);border-color:#f97316;color:#fb923c; }
         .bsl-sep { width:1px;height:18px;background:#1e2a1e;flex-shrink:0; }
+        .bsl-copy-btn {
+            padding:5px 10px;border-radius:6px;border:1px solid #38bdf8;
+            background:rgba(56,189,248,0.10);color:#38bdf8;font-size:10px;font-weight:700;
+            cursor:pointer;transition:all 0.15s;white-space:nowrap;
+        }
+        .bsl-copy-btn:hover { background:rgba(56,189,248,0.22);color:#bae6fd; }
+        .bsl-copy-btn.copied { background:rgba(34,197,94,0.22);border-color:#4ade80;color:#4ade80; }
+        .bsl-copy-btn:disabled { opacity:.45;cursor:not-allowed; }
         #bsl-run-btn {
             padding:5px 14px;border-radius:6px;border:1px solid #a3e635;
             background:rgba(163,230,53,0.12);color:#a3e635;font-size:12px;font-weight:700;
@@ -17018,6 +17026,7 @@ syncRiskRs();
                 <span class="bsl-title">■ BSL/SSL Buy Screener</span>
                 <span id="bsl-scr-date-tag" style="font-size:11px;color:#4a6a4a;font-weight:600;"></span>
                 <span id="bsl-scr-counts" style="font-size:11px;color:#4a6a4a;"></span>
+                <button id="bsl-copy-btn" class="bsl-copy-btn" onclick="bslCopyVisibleSymbols()" disabled title="Copy symbols from the current category, signal, and win-rate filters">📋 Copy symbols</button>
                 <span class="bsl-t2-note">🇳🇵 T+2 Settlement — NEPSE</span>
                 <button id="bsl-run-btn" onclick="runBslScreener()">▶ Scan All</button>
                 <button onclick="closeBslScreener()" style="background:none;border:none;color:#4a6a4a;font-size:18px;cursor:pointer;padding:0 0 0 4px;line-height:1;" title="Close">✕</button>
@@ -17179,11 +17188,7 @@ syncRiskRs();
 // ═══════════════════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════════════════
-const REPO_ORIGIN = (() => { try { return (window.top && window.top.location && window.top.location.origin && window.top.location.origin !== 'null') ? window.top.location.origin : window.location.origin; } catch (_) { return window.location.origin; } })();
-const GITHUB_DATA_URL = REPO_ORIGIN + '/data/nepse_ohlc.json';
-const GITHUB_FAST_URL = REPO_ORIGIN + '/data/nepse_ohlc_fast.json';
-const CHUNK_MANIFEST_URL = REPO_ORIGIN + '/data/chunks/manifest.json';
-const DATA_URL = CHUNK_MANIFEST_URL;
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyFnbTJV4J5zzmpJeEItw-ZdTKfkhj90WwLrYkBa1wcnNhwldUQYqwcNJMKwBXfxQ1l/exec';
 let _loaderDeadlineReached = false;
 
 // Early guard is intentionally placed before chart/data functions: a CDN,
@@ -17195,7 +17200,7 @@ function showEarlyLoaderFailure(message) {
     if (error) error.classList.remove('hidden');
     const msg = document.getElementById('error-message'), hint = document.getElementById('error-hint');
     if (msg) msg.textContent = 'NEPSE app could not start: ' + (message || 'Unknown error');
-    if (hint) hint.textContent = 'Refresh after checking internet access and the repository data files.';
+    if (hint) hint.textContent = 'Refresh after checking internet access and the Apps Script endpoint.';
 }
 window.addEventListener('error', event => {
     if (event && event.error) showEarlyLoaderFailure(event.error.message || String(event.error));
@@ -17209,7 +17214,7 @@ setTimeout(() => {
     if (loading && !loading.classList.contains('hidden')) showEarlyLoaderFailure('Data loading timed out.');
 }, 60000);
 
-// Known index / sub-index names (from the repository JSON output)
+// Known index / sub-index names (from the Apps Script output)
 const MAIN_INDICES = ['Index', 'Sensitive Index', 'Float Index', 'Sensitive Float Index'];
 const SUB_INDICES  = [
     'Banking SubIndex', 'Development Bank Index', 'Finance Index',
@@ -21564,9 +21569,9 @@ function switchInstrumentData() {
 //    • After market close   (Sun–Thu 15:00+)          → until next 10:30 NPT
 //    • Pre-market / weekend (Fri–Sat or before 11:00) → 20 hours
 // ═══════════════════════════════════════════════════════════════
-const CACHE_KEY_FAST = 'nepse_chart_cache_fast_github_features_v1';
-const CACHE_KEY_FULL = 'nepse_chart_cache_full_github_features_v1';
-const IDB_NAME       = 'nepse_chart_idb_github_features_v1';
+const CACHE_KEY_FAST = 'nepse_chart_cache_fast';
+const CACHE_KEY_FULL = 'nepse_chart_cache_full';
+const IDB_NAME       = 'nepse_chart_idb';
 const IDB_STORE      = 'cache';
 const IDB_VERSION    = 1;
 const AUTO_REFRESH_MARKER_KEY = 'nepse_auto_refresh_npt_day_v1';
@@ -21678,7 +21683,7 @@ async function getCachedData(key) {
 }
 
 // A local HTML file must never remain on the loading screen indefinitely when
-// IndexedDB or the repository data files is blocked, slow, or offline.
+// IndexedDB or the Apps Script endpoint is blocked, slow, or offline.
 function withTimeout(promise, timeoutMs, message) {
     let timer;
     const timeout = new Promise((_, reject) => {
@@ -21824,21 +21829,6 @@ function mergeInstruments(freshInstruments) {
     }
 }
 
-
-async function fetchChunkedRows() {
-    const manifestResponse = await fetchWithTimeout(CHUNK_MANIFEST_URL + '?v=' + Date.now(), { method: 'GET', redirect: 'follow', cache: 'no-store' }, 10000);
-    if (!manifestResponse.ok) throw new Error('Chunk manifest request failed: ' + manifestResponse.status);
-    const manifest = await manifestResponse.json();
-    if (!manifest || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error('No history chunks found in repository');
-    const parts = await Promise.all(manifest.files.map(async (file) => {
-        const response = await fetchWithTimeout(REPO_ORIGIN + '/data/chunks/' + encodeURIComponent(file) + '?v=' + Date.now(), { method: 'GET', redirect: 'follow', cache: 'no-store' }, 20000);
-        if (!response.ok) throw new Error('History chunk request failed: ' + file + ' (' + response.status + ')');
-        const rows = await response.json();
-        return Array.isArray(rows) ? rows : [];
-    }));
-    return parts.flat().sort((a, b) => String(a.Date || '').localeCompare(String(b.Date || '')));
-}
-
 async function loadData(options) {
     const opts = options || {};
     const forceNetwork = !!opts.forceNetwork;
@@ -21859,7 +21849,7 @@ async function loadData(options) {
             if (!allData.length && !fullDataLoaded) {
                 errorEl.classList.remove('hidden');
                 document.getElementById('error-message').textContent = 'NEPSE data request timed out.';
-                document.getElementById('error-hint').textContent = 'Check your internet connection and ensure the repository data files is accessible, then refresh.';
+                document.getElementById('error-hint').textContent = 'Check your internet connection and ensure the Apps Script endpoint is accessible, then refresh.';
             } else if (updateEl) {
                 updateEl.textContent = 'NEPSE data loaded partially — refresh to retry the remaining data.';
             }
@@ -21928,11 +21918,12 @@ async function loadData(options) {
     }
 
     // ── Step 3: fire BOTH network requests in parallel right now ──
-    const fastPromise = fetchWithTimeout(GITHUB_FAST_URL, { method: 'GET', redirect: 'follow' }, 30000)
+    const fastPromise = fetchWithTimeout(SHEET_URL + '?type=fast', { method: 'GET', redirect: 'follow' }, 30000)
         .then(r => r.ok ? r.json() : null)
         .catch(() => null);
 
-    const fullPromise = fetchChunkedRows();
+    const fullPromise = fetchWithTimeout(SHEET_URL, { method: 'GET', redirect: 'follow' }, 60000)
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
 
     // ── Step 4: as soon as fast resolves, render if not already up ──
     fastPromise.then(fastData => {
@@ -26071,7 +26062,7 @@ function runInOutCustomAllHistory() {
     const available=Object.keys(allInstruments||{});
     if (!available.length) { if(status){status.textContent='Stock data is still loading. Please try again.';status.style.color='#f87171';} return; }
     _iopCustomHistoryMode=true; _iopCustomHistoryRows=[];
-    if(btn){btn.disabled=true;btn.textContent='\\u23F3 History…';}
+    if(btn){btn.disabled=true;btn.textContent='\u23F3 History…';}
     if(status){status.textContent='Scanning all confirmed pattern histories for '+symbols.length+' symbol'+(symbols.length===1?'':'s')+'…';status.style.color='#7a5a9a';}
     body.innerHTML='<div style="padding:24px;color:#a78bfa;font-size:12px;text-align:center;">Loading all confirmed In/Out pattern histories…</div>';
     setTimeout(()=>{
@@ -29260,7 +29251,7 @@ function _stockCharacterOutpatOccurrence(p, idx, total, rawPivots, data) {
     return {...p, occurrence:idx + 1, patternName:'OutPat CHoCH', barsAgo:Number.isFinite(triggerIdx) ? Math.max(0,total - 1 - triggerIdx) : null, breakIdx:triggerIdx, startIdx, breakTime:data[triggerIdx] && data[triggerIdx].time, startTime:outPivot && outPivot.time || data[startIdx] && data[startIdx].time, levelPrice};
 }
 function _stockCharacterEscape(value) {
-    return String(value == null ? '' : value).replace(/[&<>\\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;',"'":'&#39;'}[ch]));
+    return String(value == null ? '' : value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
 }
 function _stockCharacterDate(time) { return String(time == null ? '' : time).slice(0,10); }
 function _stockCharacterBarsAgo(occurrence, totalBars) {
@@ -30273,6 +30264,7 @@ function obwOpenInstrument(name) {
 //  BSL / SSL BUY SCREENER
 // ═══════════════════════════════════════════════════════════════
 let _bslResults = [];
+let _bslVisibleResults = [];
 let _bslCat     = 'all';
 let _bslSig     = 'all';
 let _bslMinWr   = 0;
@@ -30321,6 +30313,29 @@ function bslSetWr(btn) {
     _bslMinWr = parseFloat(btn.dataset.wr);
     if (_bslResults.length) renderBslScreener();
 }
+function bslCopyVisibleSymbols() {
+    var symbols = _bslVisibleResults.map(function(r){ return r.name === 'Index' ? 'NEPSE' : r.name; }).filter(Boolean);
+    var btn = document.getElementById('bsl-copy-btn');
+    if (!symbols.length) {
+        if (btn) { var empty = btn.textContent; btn.textContent = 'Nothing to copy'; setTimeout(function(){ btn.textContent = empty; }, 1500); }
+        return;
+    }
+    var text = symbols.join('\\n');
+    var done = function(){
+        if (!btn) return;
+        var old = btn.textContent;
+        btn.textContent = '✅ Copied ' + symbols.length + '!';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = old; btn.classList.remove('copied'); }, 1800);
+    };
+    var fallback = function(){
+        var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { document.execCommand('copy'); done(); } finally { document.body.removeChild(ta); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
+}
+
 function bslSort(hd) {
     var key = hd.dataset.sort;
     if (_bslSort.key === key) _bslSort.asc = !_bslSort.asc;
@@ -30775,6 +30790,9 @@ function renderBslScreener() {
     if (_bslMinWr > 0) filtered = filtered.filter(function(r){ return r.winRate !== null && r.winRate >= _bslMinWr; });
 
     if (!filtered.length) {
+        _bslVisibleResults = [];
+        var emptyCopyBtn = document.getElementById('bsl-copy-btn');
+        if (emptyCopyBtn) { emptyCopyBtn.disabled = true; emptyCopyBtn.textContent = '📋 Copy symbols'; emptyCopyBtn.classList.remove('copied'); }
         body.innerHTML = '<div style="padding:28px;text-align:center;color:#3a5a3a;font-size:12px;">No instruments match the current filters.</div>';
         return;
     }
@@ -30787,6 +30805,13 @@ function renderBslScreener() {
         if (typeof av === 'string') return asc ? av.localeCompare(bv) : bv.localeCompare(av);
         return asc ? av - bv : bv - av;
     });
+    _bslVisibleResults = filtered.slice();
+    var copyBtn = document.getElementById('bsl-copy-btn');
+    if (copyBtn) {
+        copyBtn.disabled = !_bslVisibleResults.length;
+        copyBtn.textContent = _bslVisibleResults.length ? '📋 Copy ' + _bslVisibleResults.length + ' symbols' : '📋 Copy symbols';
+        copyBtn.classList.remove('copied');
+    }
 
     // Signal display config (buy phase removed — non-seasonal BSL = chart SELL signal only)
     var sigCfg = {
@@ -31011,7 +31036,7 @@ function showInitialLoadError(err) {
     const msg = err && err.message ? err.message : String(err || 'Unknown startup error');
     const msgEl = document.getElementById('error-message'), hintEl = document.getElementById('error-hint');
     if (msgEl) msgEl.textContent = 'NEPSE app startup failed: ' + msg;
-    if (hintEl) hintEl.textContent = 'Refresh after checking internet access and the repository data files.';
+    if (hintEl) hintEl.textContent = 'Refresh after checking internet access and the Apps Script endpoint.';
 }
 // Final bootstrap guard: if initChart/loadData is blocked by a browser or
 // local-file dependency, replace the indefinite spinner with a clear message.
