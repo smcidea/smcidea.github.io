@@ -3051,8 +3051,8 @@ body::before{
 .ss-instruction-bar strong{color:var(--accent);font-weight:700;}
 
 /* INPUT GRID */
-.ss-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
-@media(max-width:640px){.ss-input-grid{grid-template-columns:1fr;}}
+.ss-input-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-bottom:20px;}
+@media(max-width:960px){.ss-input-grid{grid-template-columns:1fr 1fr;}} @media(max-width:640px){.ss-input-grid{grid-template-columns:1fr;}}
 .ss-input-panel{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .2s,box-shadow .2s;box-shadow:var(--shadow-sm);}
 .ss-input-panel:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
 .ss-panel-header{display:flex;align-items:center;gap:10px;padding:13px 16px;background:var(--bg);border-bottom:1px solid var(--border);}
@@ -3277,7 +3277,7 @@ select.ss-date-sel:focus{border-color:var(--accent);}
   </div>
 
   <div class="ss-instruction-bar">
-    <strong>HOW TO USE:</strong> Paste stocks one per line. For accumulation, format: <strong>SYMBOL FREQUENCY</strong> (e.g. <strong>NHPC 6</strong>). Run Analysis → Save to Sheets.
+    <strong>HOW TO USE:</strong> Paste stocks one per line. For accumulation, format: <strong>SYMBOL FREQUENCY</strong> (e.g. <strong>NHPC 6</strong>). The Fundamentally Strong list is optional. Run Analysis → common stocks from A ∩ B, or A ∩ B ∩ C when C is filled.
   </div>
 
   <div class="ss-input-grid">
@@ -3298,6 +3298,15 @@ select.ss-date-sel:focus{border-color:var(--accent);}
       <textarea id="ss-accumInput" class="ss-textarea" placeholder="NHPC 6&#10;SHIVM 5&#10;RSML 4&#10;SOHL 4&#10;HFIN 4&#10;API 3&#10;EBL 3"></textarea>
       <div class="ss-format-hint">▸ Format: SYMBOL FREQUENCY — e.g. "NHPC 6" or just "NHPC"</div>
     </div>
+    <div class="ss-input-panel">
+      <div class="ss-panel-header">
+        <div class="ss-panel-num">C</div>
+        <div class="ss-panel-title">Fundamentally Strong Stocks</div>
+        <div class="ss-panel-sub">OPTIONAL</div>
+      </div>
+      <textarea id="ss-fundamentalInput" class="ss-textarea" placeholder="NABIL\nNICA\nUPPER\nSHIVM\n...\nLeave empty to use A ∩ B only"></textarea>
+      <div class="ss-format-hint">▸ Optional: one symbol per line. Only stocks in this list will be included when it is filled.</div>
+    </div>
   </div>
 
   <div class="ss-btn-row">
@@ -3317,7 +3326,7 @@ select.ss-date-sel:focus{border-color:var(--accent);}
 
   <div id="ss-results">
     <div class="ss-results-header">
-      <div class="ss-results-title">▸ Analysis Result (A ∩ B)</div>
+      <div class="ss-results-title" id="ss-resultsTitle">▸ Analysis Result (A ∩ B)</div>
       <div class="ss-results-actions"><span class="ss-results-count" id="ss-resultsCount"></span><button class="ss-copy-btn" id="ss-copyBtn" onclick="ssCopyResults()" title="Copy visible symbols (one per line) — paste vertically into Google Sheets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg><span>Copy</span></button></div>
     </div>
     <div class="ss-sector-filters" id="ss-sectorFilters"></div>
@@ -3437,7 +3446,10 @@ function ssHistoryTableRow(sym, freq, sector, chartHref, idx) {
 function ssRunAnalysis() {
   const turnoverLines = ssParseLines(document.getElementById('ss-turnoverInput').value);
   const accumLines    = ssParseLines(document.getElementById('ss-accumInput').value);
+  const fundamentalLines = ssParseLines(document.getElementById('ss-fundamentalInput').value);
   const turnoverSet   = new Set(turnoverLines.map(l => l.split(/\\s+/)[0].toUpperCase()));
+  const fundamentalSet = new Set(fundamentalLines.map(l => l.split(/\\s+/)[0].toUpperCase()));
+  const hasFundamentalFilter = fundamentalSet.size > 0;
   const accumMap = {};
   for (const line of accumLines) {
     const parts = line.trim().split(/\\s+/);
@@ -3447,9 +3459,11 @@ function ssRunAnalysis() {
   }
   const results = [];
   for (const sym of Object.keys(accumMap))
-    if (turnoverSet.has(sym)) results.push({ symbol: sym, freq: accumMap[sym], sector: ssGetSector(sym) });
+    if (turnoverSet.has(sym) && (!hasFundamentalFilter || fundamentalSet.has(sym))) results.push({ symbol: sym, freq: accumMap[sym], sector: ssGetSector(sym) });
   results.sort((a, b) => b.freq - a.freq);
   ssAllResults = results;
+  const resultTitle = document.getElementById('ss-resultsTitle');
+  if (resultTitle) resultTitle.textContent = hasFundamentalFilter ? '▸ Analysis Result (A ∩ B ∩ C)' : '▸ Analysis Result (A ∩ B)';
   ssActiveFilter = 'ALL';
   ssRenderResults();
   document.getElementById('ss-results').className = 'visible';
