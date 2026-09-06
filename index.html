@@ -16420,6 +16420,7 @@ syncRiskRs();
                         <button class="liq-menu-toggle" id="liq-menu-toggle" onclick="toggleLiquidityMenu(event)" aria-label="More BSL and signal indicators" aria-expanded="false" title="Choose BSL, SSL, SELL, BUY, and favourites">⌄</button>
                         <div class="liq-menu" id="liq-menu">
                             <div class="liq-menu-head">Liquidity indicators</div>
+                            <div class="liq-menu-row liq-master-row"><button class="toggle-btn liq-master-option" id="tog-liquidity-all" onclick="toggleAllLiquidityVisibility(event)" aria-pressed="false" title="Show or hide all liquidity indicators together">◉ Liquidity Indicators (Off)</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-bslbuy" style="--tc:#a3e635;--tc-bg:rgba(163,230,53,0.12)" data-vis="bslBuyLevel">■ BSL★</button><button class="liq-menu-fav" data-liq-fav="bslBuyLevel" aria-label="Favourite BSL star" title="Show BSL★ in the compact bar">☆</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-ssl" style="--tc:#22d3ee;--tc-bg:rgba(34,211,238,0.12)" data-vis="sslLevel">■ SSL</button><button class="liq-menu-fav" data-liq-fav="sslLevel" aria-label="Favourite SSL" title="Show SSL in the compact bar">☆</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-sell" style="--tc:#f97316;--tc-bg:rgba(249,115,22,0.12)" data-vis="sellSignal">▼ SELL</button><button class="liq-menu-fav" data-liq-fav="sellSignal" aria-label="Favourite SELL" title="Show SELL in the compact bar">☆</button></div>
@@ -17777,6 +17778,8 @@ CAP_DATA_STATIC.high.forEach(s  => { capMap[s] = 'high';  });
 const PRICE_MODE_PREF_KEY = 'smc_price_mode_ohlc4';
 let useOHLC4 = false;
 try { useOHLC4 = localStorage.getItem(PRICE_MODE_PREF_KEY) === 'true'; } catch (e) {}
+
+const LIQUIDITY_VIS_KEYS = ['bslLevel','bslBuyLevel','sslLevel','sellSignal','buySignal'];
 
 const vis = {
     bslLevel:         false,
@@ -23463,6 +23466,7 @@ function applyToggleStyles() {
     }
     updatePoiDisplayButton();
     updateFvgToggleButton();
+    updateLiquidityMasterButton();
     document.querySelectorAll('.toggle-btn').forEach(btn=>{
         const key=btn.dataset.vis;
         if (!key || !(key in vis)) return;
@@ -23495,6 +23499,31 @@ applyVolumeChartVisibility();
 // ═══════════════════════════════════════════════════════════════
 //  COMPACT BSL/SSL FAVOURITES
 // ═══════════════════════════════════════════════════════════════
+function updateLiquidityMasterButton() {
+    const btn = document.getElementById('tog-liquidity-all');
+    if (!btn) return;
+    const enabled = LIQUIDITY_VIS_KEYS.filter(key => !!vis[key]).length;
+    const allOn = enabled === LIQUIDITY_VIS_KEYS.length;
+    const anyOn = enabled > 0;
+    btn.textContent = allOn ? '◉ Liquidity Indicators (On)' : anyOn ? '◐ Liquidity Indicators (Mixed)' : '◉ Liquidity Indicators (Off)';
+    btn.classList.toggle('off', !allOn);
+    btn.classList.toggle('active', allOn);
+    btn.setAttribute('aria-pressed', String(allOn));
+    btn.title = allOn ? 'Hide all liquidity indicators together.' : 'Show all liquidity indicators together.';
+}
+function toggleAllLiquidityVisibility(event) {
+    if (event) event.stopPropagation();
+    const allOn = LIQUIDITY_VIS_KEYS.every(key => !!vis[key]);
+    LIQUIDITY_VIS_KEYS.forEach(key => { vis[key] = !allOn; });
+    saveChartTogglePrefs();
+    applyToggleStyles();
+    try {
+        const sr = chart.timeScale().getVisibleRange();
+        updateChart(false);
+        if (sr) chart.timeScale().setVisibleRange(sr);
+    } catch (e) {}
+}
+
 const LIQ_FAV_KEY = 'smc_liquidity_favourites_v1';
 const LIQ_FAV_ORDER = ['bslBuyLevel','sslLevel','sellSignal','buySignal'];
 const LIQ_FAV_LABELS = { bslBuyLevel:'■ BSL★', sslLevel:'■ SSL', sellSignal:'▼ SELL', buySignal:'▲ BUY' };
