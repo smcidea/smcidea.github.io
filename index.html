@@ -12266,6 +12266,11 @@ function fsShow(i){
           <label for="scan-end">End Date</label>
           <input type="date" id="scan-end" />
         </div>
+
+        <button type="button" id="btn-choose-smc-dates" class="btn-secondary" onclick="requestSmcDatePicker()" title="Choose the Outperformer date range by clicking two candles in SMC Chart">
+          ↗ Choose dates from SMC Chart
+        </button>
+        <div id="smc-date-picker-note" style="display:none;margin-top:8px;color:var(--primary);font-size:12px;"></div>
         <button onclick="runScan()" id="btn-scan">
           <span class="scan-spinner" aria-hidden="true"></span>
           <svg class="scan-default-label" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -12953,26 +12958,21 @@ function fsShow(i){
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"fe64b843758f4f16b429e35ccf60bafb","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"><\/script>
 
 <script>
-(function(){
-  function applySmcDateRange(range){
-    if(!range) return;
-    var start = document.getElementById('startDate');
-    var end = document.getElementById('endDate');
-    if(!start || !end) return;
-    if(range.startDate) start.value = range.startDate;
-    if(range.endDate) end.value = range.endDate;
-    var note = document.getElementById('smc-date-range-note');
-    if(note){ note.textContent = 'SMC Chart range applied: ' + (range.startDate || '—') + ' → ' + (range.endDate || '—'); note.style.display = 'block'; }
-  }
-  window.addEventListener('message', function(event){
-    var data = event && event.data;
-    if(data && data.type === 'smc-date-range') applySmcDateRange(data);
-  });
-  try {
-    var saved = JSON.parse(sessionStorage.getItem('smc_outperformer_date_range') || 'null');
-    if(saved) setTimeout(function(){ applySmcDateRange(saved); }, 0);
-  } catch(e){}
-})();
+function requestSmcDatePicker() {
+  var note = document.getElementById('smc-date-picker-note');
+  if (note) { note.textContent = 'SMC Chart खोल्नुहोस् र दुई daily candles click गर्नुहोस्: पहिलो Start Date, दोस्रो End Date.'; note.style.display = 'block'; }
+  try { window.parent.postMessage({ type: 'request-smc-date-range' }, '*'); } catch (_) {}
+}
+window.addEventListener('message', function(event) {
+  var data = event && event.data;
+  if (!data || data.type !== 'smc-date-range-selected') return;
+  var start = document.getElementById('scan-start');
+  var end = document.getElementById('scan-end');
+  if (start) start.value = data.startDate || '';
+  if (end) end.value = data.endDate || '';
+  var note = document.getElementById('smc-date-picker-note');
+  if (note) { note.textContent = 'SMC Chart dates applied: ' + data.startDate + ' → ' + data.endDate; note.style.display = 'block'; }
+});
 <\/script>
 </body>
 </html>
@@ -14495,7 +14495,12 @@ syncRiskRs();
         .refresh-btn { background: #26a69a; border-color: #26a69a; color: white; font-weight: 600; }
         .refresh-btn:hover { background: #2bbbad; }
 
-\\n        .smc-outperformer-date-bridge { display:inline-flex; align-items:center; gap:3px; padding:2px 3px; border:1px solid #35456b; border-radius:4px; background:rgba(59,130,246,.07); }\\n        .smc-outperformer-date-bridge input { width:92px; padding:3px 4px; border:1px solid #35456b; border-radius:3px; background:#111128; color:#dbeafe; font-size:9px; color-scheme:dark; }\\n        .smc-outperformer-date-bridge span { color:#7f93b5; font-size:10px; }\\n        .smc-outperformer-date-bridge button { padding:3px 5px; border:1px solid #60a5fa; border-radius:3px; background:rgba(59,130,246,.14); color:#bfdbfe; font-size:10px; cursor:pointer; }\\n        .smc-outperformer-date-bridge button:hover { background:rgba(59,130,246,.28); }\\n        body.light-theme .smc-outperformer-date-bridge { border-color:#cbd5e1; background:#f8fafc; }\\n        body.light-theme .smc-outperformer-date-bridge input { border-color:#cbd5e1; background:#fff; color:#334155; color-scheme:light; }\\n        body.light-theme .smc-outperformer-date-bridge span { color:#64748b; }\\n        body.light-theme .smc-outperformer-date-bridge button { border-color:#64748b; background:#eef4fb; color:#334155; }\\n        .indicator-toolbar-toggle {
+
+        .smc-date-pick-banner { display:none; position:absolute; left:50%; top:7px; transform:translateX(-50%); z-index:20; padding:4px 9px; border:1px solid #60a5fa; border-radius:5px; background:rgba(15,23,42,.96); color:#bfdbfe; font-size:10px; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+        .smc-date-pick-banner.active { display:block; }
+        .smc-date-pick-banner strong { color:#fbbf24; }
+        .smc-date-pick-banner button { margin-left:6px; padding:1px 5px; border:1px solid #64748b; border-radius:3px; background:transparent; color:#cbd5e1; cursor:pointer; }
+        .indicator-toolbar-toggle {
             flex: 0 0 auto; width:22px; height:24px; padding:0; border:1px solid #35456b; border-radius:4px;
             background:rgba(59,130,246,.10); color:#9cc6ff; font-size:14px; font-weight:800; line-height:1; cursor:pointer;
         }
@@ -16363,6 +16368,11 @@ syncRiskRs();
 <div class="container">
     <div class="header">
         <div class="header-row1">
+        <div id="smc-date-pick-banner" class="smc-date-pick-banner" role="status">
+          <strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date.
+          <button type="button" onclick="cancelSmcDatePick()">Cancel</button>
+        </div>
+
             <div class="header-left">
                 <div class="logo">SMC</div>
                 <!-- Instrument Selector -->
@@ -16403,12 +16413,6 @@ syncRiskRs();
                 </div>
             </div>
             <div class="controls">
-                <div class="smc-outperformer-date-bridge" id="smc-outperformer-date-bridge" title="Choose a date range and send it to Outperformer Finder">
-                    <input type="date" id="smc-outperformer-start" aria-label="Outperformer start date">
-                    <span>→</span>
-                    <input type="date" id="smc-outperformer-end" aria-label="Outperformer end date">
-                    <button type="button" onclick="sendSmcDateRangeToOutperformer(event)" title="Use these dates in Outperformer Finder">↗</button>
-                </div>
                 <div class="timeframe-picker" id="timeframe-picker">
                     <div class="timeframe-quick" id="timeframe-quick" aria-label="Favourite timeframes"></div>
                     <button class="timeframe-menu-toggle" id="timeframe-menu-toggle" onclick="toggleTimeframeMenu(event)" aria-label="More timeframe options" aria-expanded="false" title="Choose timeframes and favourites">⌄</button>
@@ -22559,6 +22563,57 @@ function initChart() {
     });
     chartInteractionSurface.addEventListener('mouseleave', () => { document.getElementById('signal-tooltip').style.display='none'; chartInteractionSurface.style.cursor='default'; });
 
+
+let smcDatePickMode = false;
+let smcDatePickStart = '';
+function smcPickTimeToISO(time) {
+  if (typeof time === 'string') return time.slice(0, 10);
+  if (typeof time === 'number') return new Date(time * 1000).toISOString().slice(0, 10);
+  if (time && Number.isFinite(time.year)) return String(time.year).padStart(4, '0') + '-' + String(time.month).padStart(2, '0') + '-' + String(time.day).padStart(2, '0');
+  return '';
+}
+function enterSmcDatePickMode() {
+  smcDatePickMode = true;
+  smcDatePickStart = '';
+  const banner = document.getElementById('smc-date-pick-banner');
+  if (banner) { banner.classList.add('active'); banner.innerHTML = '<strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date. <button type="button" onclick="cancelSmcDatePick()">Cancel</button>'; }
+  try { if (typeof selectTimeframe === 'function') selectTimeframe('D'); } catch (_) {}
+  const surface = document.getElementById('chartContainer');
+  if (surface) surface.style.cursor = 'crosshair';
+}
+function cancelSmcDatePick() {
+  smcDatePickMode = false;
+  smcDatePickStart = '';
+  const banner = document.getElementById('smc-date-pick-banner');
+  if (banner) banner.classList.remove('active');
+  const surface = document.getElementById('chartContainer');
+  if (surface) surface.style.cursor = 'default';
+}
+function finishSmcDatePick(startDate, endDate) {
+  const payload = { type: 'smc-date-range-selected', startDate, endDate };
+  try { window.parent.postMessage(payload, '*'); } catch (_) {}
+  cancelSmcDatePick();
+}
+function handleSmcDatePick(param) {
+  if (!smcDatePickMode || !param || !param.time) return;
+  const picked = smcPickTimeToISO(param.time);
+  if (!picked) return;
+  if (!smcDatePickStart) {
+    smcDatePickStart = picked;
+    const banner = document.getElementById('smc-date-pick-banner');
+    if (banner) banner.innerHTML = '<strong>Start Date:</strong> ' + picked + ' — now click the End Date candle. <button type="button" onclick="cancelSmcDatePick()">Cancel</button>';
+    return;
+  }
+  let start = smcDatePickStart;
+  let end = picked;
+  if (end < start) { const temp = start; start = end; end = temp; }
+  finishSmcDatePick(start, end);
+}
+window.addEventListener('message', function(event) {
+  const data = event && event.data;
+  if (data && data.type === 'smc-enter-date-pick') enterSmcDatePickMode();
+});
+
     // ── OHLC crosshair → updates the stats bar in the header ───
     const sOpen      = document.getElementById('stat-open');
     const sHigh      = document.getElementById('stat-high');
@@ -22568,6 +22623,8 @@ function initChart() {
     const sHoverDate = document.getElementById('stats-hover-date');
     const fmt        = v => v.toFixed(2);
 
+
+    chart.subscribeClick(param => { handleSmcDatePick(param); });
     chart.subscribeCrosshairMove(param => {
         const bar = param.time ? param.seriesData.get(candleSeries) : null;
 
@@ -23540,20 +23597,6 @@ applyVolumeChartVisibility();
 // ═══════════════════════════════════════════════════════════════
 //  COMPACT BSL/SSL FAVOURITES
 // ═══════════════════════════════════════════════════════════════
-
-function sendSmcDateRangeToOutperformer(event) {
-    if (event) event.stopPropagation();
-    const startDate = (document.getElementById('smc-outperformer-start') || {}).value || '';
-    const endDate = (document.getElementById('smc-outperformer-end') || {}).value || '';
-    if (!startDate || !endDate) { alert('Please choose both start and end dates.'); return; }
-    if (endDate < startDate) { alert('End date must be after start date.'); return; }
-    const payload = { type:'smc-date-range', startDate, endDate };
-    try { sessionStorage.setItem('smc_outperformer_date_range', JSON.stringify(payload)); } catch (_) {}
-    try { window.parent.postMessage(payload, '*'); } catch (_) {}
-    const btn = document.querySelector('#smc-outperformer-date-bridge button');
-    if (btn) { const old = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = old; }, 1200); }
-}
-
 function toggleIndicatorToolbar(event) {
     if (event) event.stopPropagation();
     const content = document.getElementById('indicator-toolbar-content');
@@ -31272,13 +31315,15 @@ setTimeout(repositionDrawBtn, 300);
       else { try { _frames[0].contentWindow.postMessage({ type: 'smc-request-turnover-history', symbol: name }, '*'); } catch (_) {} }
     }
     if (data.type === 'smc-turnover-history') _forwardSmcTurnoverHistory(data.symbol, data.history, data.error);
-    if (data.type === 'smc-date-range') {
-      const range = { type: 'smc-date-range', startDate: String(data.startDate || ''), endDate: String(data.endDate || '') };
-      try { sessionStorage.setItem('smc_outperformer_date_range', JSON.stringify(range)); } catch (_) {}
-      const outperformerFrame = _frames[7];
-      if (outperformerFrame && outperformerFrame.contentWindow) {
-        try { outperformerFrame.contentWindow.postMessage(range, '*'); } catch (_) {}
-      }
+    if (data.type === 'request-smc-date-range') {
+      showApp(10);
+      const smcFrame = _frames[10];
+      setTimeout(function() { try { smcFrame.contentWindow.postMessage({ type: 'smc-enter-date-pick' }, '*'); } catch (_) {} }, 80);
+    }
+    if (data.type === 'smc-date-range-selected') {
+      showApp(7);
+      const outFrame = _frames[7];
+      setTimeout(function() { try { outFrame.contentWindow.postMessage(data, '*'); } catch (_) {} }, 80);
     }
 
   });
