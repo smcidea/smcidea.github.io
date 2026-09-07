@@ -12951,9 +12951,32 @@ function fsShow(i){
   }
 <\/script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"fe64b843758f4f16b429e35ccf60bafb","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"><\/script>
+
+<script>
+(function(){
+  function applySmcDateRange(range){
+    if(!range) return;
+    var start = document.getElementById('startDate');
+    var end = document.getElementById('endDate');
+    if(!start || !end) return;
+    if(range.startDate) start.value = range.startDate;
+    if(range.endDate) end.value = range.endDate;
+    var note = document.getElementById('smc-date-range-note');
+    if(note){ note.textContent = 'SMC Chart range applied: ' + (range.startDate || '—') + ' → ' + (range.endDate || '—'); note.style.display = 'block'; }
+  }
+  window.addEventListener('message', function(event){
+    var data = event && event.data;
+    if(data && data.type === 'smc-date-range') applySmcDateRange(data);
+  });
+  try {
+    var saved = JSON.parse(sessionStorage.getItem('smc_outperformer_date_range') || 'null');
+    if(saved) setTimeout(function(){ applySmcDateRange(saved); }, 0);
+  } catch(e){}
+})();
+<\/script>
 </body>
 </html>
-`;
+\`;
 
 
   apps[8] = `<!DOCTYPE html>
@@ -14472,6 +14495,13 @@ syncRiskRs();
         .refresh-btn { background: #26a69a; border-color: #26a69a; color: white; font-weight: 600; }
         .refresh-btn:hover { background: #2bbbad; }
 
+\\n        .smc-outperformer-date-bridge { display:inline-flex; align-items:center; gap:3px; padding:2px 3px; border:1px solid #35456b; border-radius:4px; background:rgba(59,130,246,.07); }\\n        .smc-outperformer-date-bridge input { width:92px; padding:3px 4px; border:1px solid #35456b; border-radius:3px; background:#111128; color:#dbeafe; font-size:9px; color-scheme:dark; }\\n        .smc-outperformer-date-bridge span { color:#7f93b5; font-size:10px; }\\n        .smc-outperformer-date-bridge button { padding:3px 5px; border:1px solid #60a5fa; border-radius:3px; background:rgba(59,130,246,.14); color:#bfdbfe; font-size:10px; cursor:pointer; }\\n        .smc-outperformer-date-bridge button:hover { background:rgba(59,130,246,.28); }\\n        body.light-theme .smc-outperformer-date-bridge { border-color:#cbd5e1; background:#f8fafc; }\\n        body.light-theme .smc-outperformer-date-bridge input { border-color:#cbd5e1; background:#fff; color:#334155; color-scheme:light; }\\n        body.light-theme .smc-outperformer-date-bridge span { color:#64748b; }\\n        body.light-theme .smc-outperformer-date-bridge button { border-color:#64748b; background:#eef4fb; color:#334155; }\\n        .indicator-toolbar-toggle {
+            flex: 0 0 auto; width:22px; height:24px; padding:0; border:1px solid #35456b; border-radius:4px;
+            background:rgba(59,130,246,.10); color:#9cc6ff; font-size:14px; font-weight:800; line-height:1; cursor:pointer;
+        }
+        .indicator-toolbar-toggle:hover { border-color:#60a5fa; background:rgba(59,130,246,.22); color:#dbeafe; }
+        .indicator-toolbar-content { display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:0; }
+        .indicator-toolbar-content.collapsed { display:none; }
         .legend {
             display: flex;
             gap: 8px;
@@ -15730,6 +15760,8 @@ syncRiskRs();
         /* ── Compact BSL/SSL favourite picker ── */
         .liq-picker { position:relative; display:inline-flex; align-items:center; gap:4px; }
         .liq-quick { display:inline-flex; align-items:center; gap:4px; }
+        .liq-master-toolbar-btn { padding:4px 7px; min-width:64px; }
+        .liq-master-toolbar-btn.off { text-decoration:line-through; text-decoration-thickness:1.5px; text-decoration-color:#94a3b8; opacity:.78; }
         .liq-menu-toggle { padding:4px 6px; border:1px solid #35456b; border-radius:4px; background:rgba(59,130,246,.10); color:#9cc6ff; font-size:9px; cursor:pointer; line-height:1; }
         .liq-menu-toggle:hover, .liq-picker.open .liq-menu-toggle { border-color:#60a5fa; background:rgba(59,130,246,.22); color:#dbeafe; }
         .liq-menu { display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:1710; min-width:210px; padding:5px; background:#111128; border:1px solid #35456b; border-radius:6px; box-shadow:0 8px 22px rgba(0,0,0,.55); }
@@ -16371,6 +16403,12 @@ syncRiskRs();
                 </div>
             </div>
             <div class="controls">
+                <div class="smc-outperformer-date-bridge" id="smc-outperformer-date-bridge" title="Choose a date range and send it to Outperformer Finder">
+                    <input type="date" id="smc-outperformer-start" aria-label="Outperformer start date">
+                    <span>→</span>
+                    <input type="date" id="smc-outperformer-end" aria-label="Outperformer end date">
+                    <button type="button" onclick="sendSmcDateRangeToOutperformer(event)" title="Use these dates in Outperformer Finder">↗</button>
+                </div>
                 <div class="timeframe-picker" id="timeframe-picker">
                     <div class="timeframe-quick" id="timeframe-quick" aria-label="Favourite timeframes"></div>
                     <button class="timeframe-menu-toggle" id="timeframe-menu-toggle" onclick="toggleTimeframeMenu(event)" aria-label="More timeframe options" aria-expanded="false" title="Choose timeframes and favourites">⌄</button>
@@ -16411,16 +16449,18 @@ syncRiskRs();
             </div>
         </div>
         <div class="header-row2">
+            <button class="indicator-toolbar-toggle" id="indicator-toolbar-toggle" onclick="toggleIndicatorToolbar(event)" aria-expanded="true" aria-label="Collapse indicator toolbar" title="Collapse indicator toolbar">‹</button>
+            <div class="indicator-toolbar-content" id="indicator-toolbar-content">
             <div class="legend">
                 <!-- BSL/SSL Liquidity Strategy group -->
                 <div class="liq-box">
-                    <button class="toggle-btn" id="tog-bsl" style="--tc:#f97316;--tc-bg:rgba(249,115,22,0.12)" data-vis="bslLevel">■ BSL</button>
+                    <button class="toggle-btn liq-master-toolbar-btn off" id="tog-liquidity-all" onclick="toggleAllLiquidityVisibility(event)" aria-pressed="false" title="Show all liquidity indicators">Liquidity</button>
                     <div class="liq-picker" id="liq-picker">
                         <div class="liq-quick" id="liq-quick" aria-label="Favourite BSL and signal indicators"></div>
                         <button class="liq-menu-toggle" id="liq-menu-toggle" onclick="toggleLiquidityMenu(event)" aria-label="More BSL and signal indicators" aria-expanded="false" title="Choose BSL, SSL, SELL, BUY, and favourites">⌄</button>
                         <div class="liq-menu" id="liq-menu">
                             <div class="liq-menu-head">Liquidity indicators</div>
-                            <div class="liq-menu-row liq-master-row"><button class="toggle-btn liq-master-option" id="tog-liquidity-all" onclick="toggleAllLiquidityVisibility(event)" aria-pressed="false" title="Show or hide all liquidity indicators together">◉ Liquidity Indicators (Off)</button></div>
+                            <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-bsl" style="--tc:#f97316;--tc-bg:rgba(249,115,22,0.12)" data-vis="bslLevel">■ BSL</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-bslbuy" style="--tc:#a3e635;--tc-bg:rgba(163,230,53,0.12)" data-vis="bslBuyLevel">■ BSL★</button><button class="liq-menu-fav" data-liq-fav="bslBuyLevel" aria-label="Favourite BSL star" title="Show BSL★ in the compact bar">☆</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-ssl" style="--tc:#22d3ee;--tc-bg:rgba(34,211,238,0.12)" data-vis="sslLevel">■ SSL</button><button class="liq-menu-fav" data-liq-fav="sslLevel" aria-label="Favourite SSL" title="Show SSL in the compact bar">☆</button></div>
                             <div class="liq-menu-row"><button class="toggle-btn liq-option" id="tog-sell" style="--tc:#f97316;--tc-bg:rgba(249,115,22,0.12)" data-vis="sellSignal">▼ SELL</button><button class="liq-menu-fav" data-liq-fav="sellSignal" aria-label="Favourite SELL" title="Show SELL in the compact bar">☆</button></div>
@@ -16497,6 +16537,7 @@ syncRiskRs();
                         <div class="compact-indicator-note">Star an indicator to keep it visible beside Monthly.</div>
                     </div>
                 </div>
+            </div>
             </div>
             <div class="last-update" id="last-update"></div>
         </div>
@@ -23499,17 +23540,59 @@ applyVolumeChartVisibility();
 // ═══════════════════════════════════════════════════════════════
 //  COMPACT BSL/SSL FAVOURITES
 // ═══════════════════════════════════════════════════════════════
+
+function sendSmcDateRangeToOutperformer(event) {
+    if (event) event.stopPropagation();
+    const startDate = (document.getElementById('smc-outperformer-start') || {}).value || '';
+    const endDate = (document.getElementById('smc-outperformer-end') || {}).value || '';
+    if (!startDate || !endDate) { alert('Please choose both start and end dates.'); return; }
+    if (endDate < startDate) { alert('End date must be after start date.'); return; }
+    const payload = { type:'smc-date-range', startDate, endDate };
+    try { sessionStorage.setItem('smc_outperformer_date_range', JSON.stringify(payload)); } catch (_) {}
+    try { window.parent.postMessage(payload, '*'); } catch (_) {}
+    const btn = document.querySelector('#smc-outperformer-date-bridge button');
+    if (btn) { const old = btn.textContent; btn.textContent = '✓'; setTimeout(() => { btn.textContent = old; }, 1200); }
+}
+
+function toggleIndicatorToolbar(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('indicator-toolbar-content');
+    const button = document.getElementById('indicator-toolbar-toggle');
+    if (!content || !button) return;
+    const collapsed = content.classList.toggle('collapsed');
+    button.textContent = collapsed ? '›' : '‹';
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.setAttribute('aria-label', collapsed ? 'Expand indicator toolbar' : 'Collapse indicator toolbar');
+    button.title = collapsed ? 'Expand indicator toolbar' : 'Collapse indicator toolbar';
+    try { localStorage.setItem('smc_indicator_toolbar_collapsed_v1', collapsed ? '1' : '0'); } catch (e) {}
+}
+function initIndicatorToolbarState() {
+    const content = document.getElementById('indicator-toolbar-content');
+    const button = document.getElementById('indicator-toolbar-toggle');
+    if (!content || !button) return;
+    let collapsed = false;
+    try { collapsed = localStorage.getItem('smc_indicator_toolbar_collapsed_v1') === '1'; } catch (e) {}
+    if (collapsed) {
+        content.classList.add('collapsed');
+        button.textContent = '›';
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'Expand indicator toolbar');
+        button.title = 'Expand indicator toolbar';
+    }
+}
+initIndicatorToolbarState();
+
 function updateLiquidityMasterButton() {
     const btn = document.getElementById('tog-liquidity-all');
     if (!btn) return;
     const enabled = LIQUIDITY_VIS_KEYS.filter(key => !!vis[key]).length;
     const allOn = enabled === LIQUIDITY_VIS_KEYS.length;
     const anyOn = enabled > 0;
-    btn.textContent = allOn ? '◉ Liquidity Indicators (On)' : anyOn ? '◐ Liquidity Indicators (Mixed)' : '◉ Liquidity Indicators (Off)';
-    btn.classList.toggle('off', !allOn);
+    btn.textContent = 'Liquidity';
+    btn.classList.toggle('off', !anyOn);
     btn.classList.toggle('active', allOn);
     btn.setAttribute('aria-pressed', String(allOn));
-    btn.title = allOn ? 'Hide all liquidity indicators together.' : 'Show all liquidity indicators together.';
+    btn.title = allOn ? 'Hide all liquidity indicators together.' : anyOn ? 'Some liquidity indicators are active; click to show all.' : 'Show all liquidity indicators together.';
 }
 function toggleAllLiquidityVisibility(event) {
     if (event) event.stopPropagation();
@@ -31189,6 +31272,15 @@ setTimeout(repositionDrawBtn, 300);
       else { try { _frames[0].contentWindow.postMessage({ type: 'smc-request-turnover-history', symbol: name }, '*'); } catch (_) {} }
     }
     if (data.type === 'smc-turnover-history') _forwardSmcTurnoverHistory(data.symbol, data.history, data.error);
+    if (data.type === 'smc-date-range') {
+      const range = { type: 'smc-date-range', startDate: String(data.startDate || ''), endDate: String(data.endDate || '') };
+      try { sessionStorage.setItem('smc_outperformer_date_range', JSON.stringify(range)); } catch (_) {}
+      const outperformerFrame = _frames[7];
+      if (outperformerFrame && outperformerFrame.contentWindow) {
+        try { outperformerFrame.contentWindow.postMessage(range, '*'); } catch (_) {}
+      }
+    }
+
   });
 
   /* Theme toggle — reloads all frames (unavoidable to restyle inner apps) */
