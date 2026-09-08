@@ -16370,7 +16370,7 @@ syncRiskRs();
         <div class="header-row1">
         <div id="smc-date-pick-banner" class="smc-date-pick-banner" role="status">
           <strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date.
-          <button type="button" onclick="cancelSmcDatePick()">Cancel</button>
+          <button type="button" onclick="window.cancelSmcDatePick()">Cancel</button>
         </div>
 
             <div class="header-left">
@@ -22576,7 +22576,7 @@ function enterSmcDatePickMode() {
   smcDatePickMode = true;
   smcDatePickStart = '';
   const banner = document.getElementById('smc-date-pick-banner');
-  if (banner) { banner.classList.add('active'); banner.innerHTML = '<strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date. <button type="button" onclick="cancelSmcDatePick()">Cancel</button>'; }
+  if (banner) { banner.classList.add('active'); banner.innerHTML = '<strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date. <button type="button" onclick="window.cancelSmcDatePick()">Cancel</button>'; }
   try { if (typeof selectTimeframe === 'function') selectTimeframe('D'); } catch (_) {}
   const surface = document.getElementById('chartContainer');
   if (surface) surface.style.cursor = 'crosshair';
@@ -22585,10 +22585,21 @@ function cancelSmcDatePick() {
   smcDatePickMode = false;
   smcDatePickStart = '';
   const banner = document.getElementById('smc-date-pick-banner');
-  if (banner) banner.classList.remove('active');
+  if (banner) {
+    banner.classList.remove('active');
+    banner.innerHTML = '<strong>Choose dates:</strong> click first candle for Start Date, then second candle for End Date. <button type="button" onclick="window.cancelSmcDatePick()">Cancel</button>';
+  }
   const surface = document.getElementById('chartContainer');
   if (surface) surface.style.cursor = 'default';
 }
+// Inline buttons in the generated chart iframe resolve through window.
+window.cancelSmcDatePick = cancelSmcDatePick;
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' && smcDatePickMode) {
+    event.preventDefault();
+    cancelSmcDatePick();
+  }
+});
 function finishSmcDatePick(startDate, endDate) {
   const payload = { type: 'smc-date-range-selected', startDate, endDate };
   try { window.parent.postMessage(payload, '*'); } catch (_) {}
@@ -22601,7 +22612,7 @@ function handleSmcDatePick(param) {
   if (!smcDatePickStart) {
     smcDatePickStart = picked;
     const banner = document.getElementById('smc-date-pick-banner');
-    if (banner) banner.innerHTML = '<strong>Start Date:</strong> ' + picked + ' — now click the End Date candle. <button type="button" onclick="cancelSmcDatePick()">Cancel</button>';
+    if (banner) banner.innerHTML = '<strong>Start Date:</strong> ' + picked + ' — now click the End Date candle. <button type="button" onclick="window.cancelSmcDatePick()">Cancel</button>';
     return;
   }
   let start = smcDatePickStart;
@@ -22612,6 +22623,7 @@ function handleSmcDatePick(param) {
 window.addEventListener('message', function(event) {
   const data = event && event.data;
   if (data && data.type === 'smc-enter-date-pick') enterSmcDatePickMode();
+  if (data && data.type === 'smc-cancel-date-pick') cancelSmcDatePick();
 });
 
     // ── OHLC crosshair → updates the stats bar in the header ───
@@ -31304,6 +31316,11 @@ setTimeout(repositionDrawBtn, 300);
     deliver();
     [80, 300, 1000].forEach(function(ms) { setTimeout(deliver, ms); });
   }
+  document.addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape') return;
+    const smcFrame = _frames[10];
+    try { if (smcFrame && smcFrame.contentWindow) smcFrame.contentWindow.postMessage({ type: 'smc-cancel-date-pick' }, '*'); } catch (_) {}
+  });
   window.addEventListener('message', function(event) {
     const data = event && event.data;
     if (!data) return;
