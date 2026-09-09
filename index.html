@@ -31351,7 +31351,7 @@ function openSeasonalScreener() {
     var bd = document.getElementById('seasonal-scr-backdrop');
     var md = document.getElementById('seasonal-scr-modal');
     if (bd) bd.style.display = 'block';
-    if (md) { md.style.display = 'flex'; md.classList.add('sea-open'); }
+    if (md) { md.style.display = 'flex'; }
     _seaMonthIndex = (new Date()).getMonth();
     var tag = document.getElementById('sea-month-tag');
     if (tag) tag.textContent = 'Focus: ' + SEA_MONTH_NAMES[_seaMonthIndex];
@@ -31365,7 +31365,7 @@ function closeSeasonalScreener() {
     var bd = document.getElementById('seasonal-scr-backdrop');
     var md = document.getElementById('seasonal-scr-modal');
     if (bd) bd.style.display = 'none';
-    if (md) { md.style.display = 'none'; md.classList.remove('sea-open'); }
+    if (md) { md.style.display = 'none'; }
     _seaView = 'list';
     _seaDetailSymbol = null;
 }
@@ -31527,8 +31527,7 @@ function renderSeasonalList() {
         var avgCls = r.avg > 0 ? 'sea-pos' : (r.avg < 0 ? 'sea-neg' : 'sea-muted');
         var lastCls = r.last.ret > 0 ? 'sea-pos' : (r.last.ret < 0 ? 'sea-neg' : 'sea-muted');
         var wrCls = r.winRate >= 60 ? 'sea-pos' : (r.winRate >= 45 ? '' : 'sea-neg');
-        var symEsc = r.symbol.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        rows += '<tr onclick="seaOpenDetail(\\'' + symEsc + '\\')">'
+        rows += '<tr data-sea-symbol="' + r.symbol + '">'
             + '<td class="sym">' + r.symbol + '</td>'
             + '<td class="num ' + avgCls + '">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
             + '<td class="num ' + wrCls + '">' + r.winRate.toFixed(0) + '%</td>'
@@ -31547,6 +31546,13 @@ function renderSeasonalList() {
         + '<th class="num">Best</th>'
         + '<th class="num">Worst</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    var tbl = body.querySelector('table.sea-list-table');
+    if (tbl) {
+        tbl.addEventListener('click', function(ev) {
+            var tr = ev.target.closest('tr[data-sea-symbol]');
+            if (tr) seaOpenDetail(tr.getAttribute('data-sea-symbol'));
+        });
+    }
 }
 
 function seaOpenDetail(symbol) {
@@ -31589,12 +31595,11 @@ function renderSeasonalDetail(symbol) {
         var wr = vals.length ? (vals.filter(function(v){return v>0;}).length / vals.length * 100) : null;
         monthStats.push({ avg: avg, winRate: wr, n: vals.length });
     }
-    var symEsc = symbol.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var header = '<div class="sea-detail-header">'
-        + '<button class="sea-back-btn" onclick="seaBackToList()">← Back to list</button>'
+        + '<button class="sea-back-btn" id="sea-back-btn">← Back to list</button>'
         + '<strong style="color:#e2e8f0;font-size:14px;">' + symbol + '</strong>'
         + '<span style="color:#64748b;font-size:11px;">Year × Month returns</span>'
-        + '<button class="sea-back-btn" style="margin-left:auto;" onclick="seaOpenInChart(\\'' + symEsc + '\\')">Open in Chart →</button>'
+        + '<button class="sea-back-btn" id="sea-open-chart-btn" style="margin-left:auto;">Open in Chart →</button>'
         + '</div>';
     var thead = '<tr><th class="year-col">Year</th>';
     for (var m = 0; m < 12; m++) {
@@ -31649,6 +31654,10 @@ function renderSeasonalDetail(symbol) {
         + '<span><span class="sea-swatch" style="background:rgba(248,113,113,0.3);"></span> Negative</span>'
         + '<span>Avg = mean return · Win% = % years positive · N = observations</span>'
         + '</div>';
+    var backBtn = document.getElementById('sea-back-btn');
+    if (backBtn) backBtn.addEventListener('click', seaBackToList);
+    var openBtn = document.getElementById('sea-open-chart-btn');
+    if (openBtn) openBtn.addEventListener('click', function(){ seaOpenInChart(symbol); });
 }
 
 function seaOpenInChart(symbol) {
@@ -31659,7 +31668,6 @@ function seaOpenInChart(symbol) {
     if (typeof updateTriggerLabel === 'function') updateTriggerLabel();
     if (typeof switchInstrumentData === 'function') switchInstrumentData();
 }
-
 
 // ═══════════════════════════════════════════════════════════════
 //  WEEKLY ATR(5) STOP-LOSS CALCULATOR
