@@ -17249,6 +17249,10 @@ syncRiskRs();
                 <button class="sea-cat-btn active" data-filter="positive" onclick="seaSetFilter(this)">Positive only</button>
                 <button class="sea-cat-btn" data-filter="all" onclick="seaSetFilter(this)">All</button>
                 <button class="sea-cat-btn" data-filter="negative" onclick="seaSetFilter(this)">Negative only</button>
+                <span class="sea-filter-label" style="margin-left:10px;">Universe</span>
+                <button class="sea-cat-btn active" data-universe="all" onclick="seaSetUniverse(this)">All + Index</button>
+                <button class="sea-cat-btn" data-universe="index" onclick="seaSetUniverse(this)">Index only</button>
+                <button class="sea-cat-btn" data-universe="custom" onclick="seaSetUniverse(this)">Custom list</button>
                 <span class="sea-filter-label" style="margin-left:10px;">Min years</span>
                 <button class="sea-cat-btn active" data-minyears="3" onclick="seaSetMinYears(this)">≥3</button>
                 <button class="sea-cat-btn" data-minyears="5" onclick="seaSetMinYears(this)">≥5</button>
@@ -17257,6 +17261,14 @@ syncRiskRs();
                 <button class="sea-cat-btn active" data-sort="avg" onclick="seaSetSort(this)">Avg Return</button>
                 <button class="sea-cat-btn" data-sort="winrate" onclick="seaSetSort(this)">Win Rate</button>
                 <button class="sea-cat-btn" data-sort="symbol" onclick="seaSetSort(this)">Symbol</button>
+            </div>
+            <div class="sea-filter-row" id="sea-custom-row" style="display:none;">
+                <span class="sea-filter-label">Custom</span>
+                <input id="sea-custom-input" type="text" placeholder="e.g. NABIL, ADBL, Index, Banking SubIndex" 
+                    style="flex:1;min-width:180px;max-width:520px;padding:4px 10px;border-radius:6px;border:1px solid #2a3a4a;background:#0f172a;color:#e2e8f0;font-size:12px;"
+                    onkeydown="if(event.key==='Enter'){seaApplyCustom();}" />
+                <button class="sea-cat-btn" onclick="seaApplyCustom()" style="border-color:#38bdf8;color:#7dd3fc;">Apply</button>
+                <span id="sea-custom-hint" style="font-size:10px;color:#64748b;"></span>
             </div>
             <div class="sea-body" id="sea-body">
                 <div class="sea-empty">Click <strong>▶ Scan All</strong> to compute historical monthly returns for all stocks.</div>
@@ -31342,6 +31354,9 @@ var _seaResults = [];
 var _seaFilter = 'positive';
 var _seaMinYears = 3;
 var _seaSort = 'avg';
+var _seaSortDir = 'desc';  // 'asc' | 'desc'
+var _seaUniverse = 'all';  // 'all' | 'index' | 'custom'
+var _seaCustomList = [];  // uppercase symbols when universe=custom
 var _seaView = 'list';
 var _seaDetailSymbol = null;
 var _seaMonthIndex = (new Date()).getMonth();
@@ -31384,10 +31399,113 @@ function seaSetMinYears(btn) {
     renderSeasonalScreener();
 }
 function seaSetSort(btn) {
-    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){ b.classList.remove('active'); });
+    var key = btn.getAttribute('data-sort');
+    if (_seaSort === key) {
+        _seaSortDir = (_seaSortDir === 'desc') ? 'asc' : 'desc';
+    } else {
+        _seaSort = key;
+        _seaSortDir = (key === 'symbol') ? 'asc' : 'desc';
+    }
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){
+        b.classList.remove('active');
+        var label = b.getAttribute('data-label') || b.textContent.replace(/[\u2191\u2193↑↓]/g, '').trim();
+        b.setAttribute('data-label', label);
+        b.textContent = label;
+    });
     btn.classList.add('active');
-    _seaSort = btn.getAttribute('data-sort');
+    var base = btn.getAttribute('data-label') || btn.textContent.replace(/[\u2191\u2193↑↓]/g, '').trim();
+    btn.setAttribute('data-label', base);
+    btn.textContent = base + (_seaSortDir === 'desc' ? ' ↓' : ' ↑');
     renderSeasonalScreener();
+}
+
+
+function seaIsIndexName(name) {
+    if (!name) return false;
+    var n = String(name);
+    if (n === 'Index' || n === 'NEPSE' || n === 'NEPSE Index') return true;
+    if (/sub[\s_-]?index/i.test(n)) return true;
+    if (/\bIndex\b/i.test(n) && n.indexOf('-') < 0) return true;
+    return false;
+}
+function seaSetUniverse(btn) {
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    _seaUniverse = btn.getAttribute('data-universe') || 'all';
+    var row = document.getElementById('sea-custom-row');
+    if (row) row.style.display = (_seaUniverse === 'custom') ? 'flex' : 'none';
+    if (_seaUniverse === 'custom' && !_seaCustomList.length) {
+        var body = document.getElementById('sea-body');
+        if (body) body.innerHTML = '<div class="sea-empty">Enter symbols above (comma or space separated), then click <strong>Apply</strong>.</div>';
+        return;
+    }
+    // Re-scan when switching universe so Index / custom set is fresh
+    if (typeof allInstruments === 'object' && allInstruments && Object.keys(allInstruments).length) {
+        runSeasonalScreener();
+    } else {
+        renderSeasonalScreener();
+    }
+}
+function seaApplyCustom() {
+    var inp = document.getElementById('sea-custom-input');
+    var hint = document.getElementById('sea-custom-hint');
+    var raw = (inp && inp.value) ? inp.value : '';
+    var parts = raw.split(/[\s,;]+/).map(function(s){ return s.trim().toUpperCase(); }).filter(Boolean);
+    // de-dupe
+    var seen = {};
+    _seaCustomList = [];
+    for (var i = 0; i < parts.length; i++) {
+        if (!seen[parts[i]]) { seen[parts[i]] = 1; _seaCustomList.push(parts[i]); }
+    }
+    // Map friendly names
+    _seaCustomList = _seaCustomList.map(function(s) {
+        if (s === 'NEPSE' || s === 'NEPSEINDEX' || s === 'NEPSE_INDEX') return 'Index';
+        return s;
+    });
+    var found = 0, missing = [];
+    for (var i = 0; i < _seaCustomList.length; i++) {
+        var sym = _seaCustomList[i];
+        var ok = allInstruments[sym] || allInstruments[sym.toUpperCase()] || allInstruments[sym.toLowerCase()];
+        // try case-insensitive lookup
+        if (!ok && allInstruments) {
+            var keys = Object.keys(allInstruments);
+            for (var k = 0; k < keys.length; k++) {
+                if (keys[k].toUpperCase() === sym) { ok = true; _seaCustomList[i] = keys[k]; break; }
+            }
+        }
+        if (ok) found++; else missing.push(sym);
+    }
+    if (hint) {
+        hint.textContent = found + ' found' + (missing.length ? (' · missing: ' + missing.slice(0, 6).join(', ')) : '');
+        hint.style.color = missing.length ? '#f87171' : '#4ade80';
+    }
+    _seaUniverse = 'custom';
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-universe') === 'custom');
+    });
+    var row = document.getElementById('sea-custom-row');
+    if (row) row.style.display = 'flex';
+    runSeasonalScreener();
+}
+function seaUniverseNames() {
+    var names = seaUniverseNames();
+    if (_seaUniverse === 'custom') {
+        if (!_seaCustomList.length) return [];
+        var out = [];
+        for (var i = 0; i < _seaCustomList.length; i++) {
+            var want = _seaCustomList[i];
+            if (allInstruments[want]) { out.push(want); continue; }
+            for (var k = 0; k < names.length; k++) {
+                if (names[k].toUpperCase() === String(want).toUpperCase()) { out.push(names[k]); break; }
+            }
+        }
+        return out;
+    }
+    if (_seaUniverse === 'index') {
+        return names.filter(seaIsIndexName);
+    }
+    // all: stocks + index/sub-index
+    return names;
 }
 
 /** First and last close per calendar month. Uses monthKey() like BSL stats. */
@@ -31535,9 +31653,12 @@ function renderSeasonalList() {
         filtered.push(r);
     }
     filtered.sort(function(a, b) {
-        if (_seaSort === 'winrate') return b.winRate - a.winRate || b.avg - a.avg;
-        if (_seaSort === 'symbol') return a.symbol < b.symbol ? -1 : (a.symbol > b.symbol ? 1 : 0);
-        return b.avg - a.avg || b.winRate - a.winRate;
+        var dir = (_seaSortDir === 'asc') ? 1 : -1;
+        var cmp = 0;
+        if (_seaSort === 'winrate') cmp = (a.winRate - b.winRate) || (a.avg - b.avg);
+        else if (_seaSort === 'symbol') cmp = a.symbol < b.symbol ? -1 : (a.symbol > b.symbol ? 1 : 0);
+        else cmp = (a.avg - b.avg) || (a.winRate - b.winRate);
+        return cmp * dir;
     });
     if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' · ' + SEA_MONTH_NAMES[_seaMonthIndex];
     if (!filtered.length) {
@@ -31550,8 +31671,9 @@ function renderSeasonalList() {
         var avgCls = r.avg > 0 ? 'sea-pos' : (r.avg < 0 ? 'sea-neg' : 'sea-muted');
         var lastCls = r.last.ret > 0 ? 'sea-pos' : (r.last.ret < 0 ? 'sea-neg' : 'sea-muted');
         var wrCls = r.winRate >= 60 ? 'sea-pos' : (r.winRate >= 45 ? '' : 'sea-neg');
+        var isIdx = seaIsIndexName(r.symbol);
         rows += '<tr data-sea-symbol="' + r.symbol + '">'
-            + '<td class="sym">' + r.symbol + '</td>'
+            + '<td class="sym">' + r.symbol + (isIdx ? ' <span style="font-size:9px;color:#38bdf8;">INDEX</span>' : '') + '</td>'
             + '<td class="num ' + avgCls + '">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
             + '<td class="num ' + wrCls + '">' + r.winRate.toFixed(0) + '%</td>'
             + '<td class="num sea-muted">' + r.nYears + '</td>'
