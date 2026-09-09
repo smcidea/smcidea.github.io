@@ -31390,39 +31390,47 @@ function seaSetSort(btn) {
     renderSeasonalScreener();
 }
 
-/** Month-end closes using the same monthKey() helper as BSL/monthly stats. */
-function seaMonthEndCloses(bars) {
-    var map = {};
-    if (!Array.isArray(bars)) return map;
+/** First and last close per calendar month. Uses monthKey() like BSL stats. */
+function seaMonthCloses(bars) {
+    var first = {};
+    var last = {};
+    if (!Array.isArray(bars)) return { first: first, last: last };
     for (var i = 0; i < bars.length; i++) {
         var b = bars[i];
         if (!b || b.time == null) continue;
         var t = b.time;
-        // monthKey expects a string date; coerce if needed
         var tStr = (typeof t === 'string') ? t : (typeof t === 'object' && t.year != null
-            ? (t.year + '-' + String(t.month).padStart(2,'0') + '-' + String(t.day || 1).padStart(2,'0'))
+            ? (t.year + '-' + String(t.month).padStart(2, '0') + '-' + String(t.day || 1).padStart(2, '0'))
             : String(t));
         if (tStr.length < 7) continue;
         var mk = (typeof monthKey === 'function') ? monthKey(tStr) : tStr.slice(0, 7);
         var close = Number(b.close);
         if (!Number.isFinite(close) || close <= 0) continue;
-        map[mk] = close;
+        if (first[mk] == null) first[mk] = close;
+        last[mk] = close;
     }
-    return map;
+    return { first: first, last: last };
 }
 
 function seaComputeReturns(symbol) {
     var bars = allInstruments[symbol];
     if (!bars || bars.length < 2) return null;
-    var monthCloses = seaMonthEndCloses(bars);
-    var keys = Object.keys(monthCloses).sort();
-    if (keys.length < 2) return null;
+    var mc = seaMonthCloses(bars);
+    var keys = Object.keys(mc.last).sort();
+    if (!keys.length) return null;
 
+    // Intra-month return (NepseAlpha-style):
+    // (last close of month - first close of month) / first close of month
     var returnsByYM = {};
-    for (var i = 1; i < keys.length; i++) {
-        var prev = monthCloses[keys[i - 1]];
-        var cur = monthCloses[keys[i]];
-        if (prev > 0 && cur > 0) returnsByYM[keys[i]] = ((cur - prev) / prev) * 100;
+    for (var i = 0; i < keys.length; i++) {
+        var ym = keys[i];
+        var f = mc.first[ym];
+        var l = mc.last[ym];
+        if (f > 0 && l > 0 && f !== l) {
+            returnsByYM[ym] = ((l - f) / f) * 100;
+        } else if (f > 0 && l > 0) {
+            returnsByYM[ym] = 0;
+        }
     }
 
     var focusMM = String(_seaMonthIndex + 1);
@@ -31433,7 +31441,7 @@ function seaComputeReturns(symbol) {
     for (var j = 0; j < ymKeys.length; j++) {
         var ym = ymKeys[j];
         var y = parseInt(ym.slice(0, 4), 10);
-        var m = parseInt(ym.slice(5, 7), 10); // 1-12
+        var m = parseInt(ym.slice(5, 7), 10);
         if (!returns[y]) returns[y] = {};
         returns[y][m - 1] = returnsByYM[ym];
         if (ym.slice(5, 7) === focusMM) focusRets.push({ year: y, ret: returnsByYM[ym] });
@@ -31472,8 +31480,8 @@ function runSeasonalScreener() {
         var anyMonths = 0;
         for (var i = 0; i < names.length; i++) {
             try {
-                var mc = seaMonthEndCloses(allInstruments[names[i]]);
-                if (Object.keys(mc).length) anyMonths++;
+                var mc = seaMonthCloses(allInstruments[names[i]]);
+                if (Object.keys(mc.last).length) anyMonths++;
                 var r = seaComputeReturns(names[i]);
                 if (r) results.push(r);
             } catch (e) { console.warn('[Seasonal] skip', names[i], e); }
@@ -31492,7 +31500,7 @@ function runSeasonalScreener() {
                 b0: b0,
                 b1: b1,
                 bN: bN,
-                monthKeys: Object.keys(seaMonthEndCloses(sb)).slice(0, 8)
+                monthKeys: Object.keys(seaMonthCloses(sb).last).slice(0, 8)
             });
             if (body) body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols (' + anyMonths + ' had monthly bars) — 0 matched <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>. See console [Seasonal] diag.</div>';
             return;
