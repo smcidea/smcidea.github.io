@@ -17003,6 +17003,7 @@ syncRiskRs();
             background:#12122a;border:1px solid #1e3a5f;border-radius:12px;
             box-shadow:0 20px 60px rgba(0,0,0,0.75);flex-direction:column;overflow:hidden;
         }
+        #seasonal-scr-modal.sea-open { display:flex !important; }
         #seasonal-scr-modal .sea-header {
             display:flex;align-items:center;gap:10px;padding:12px 16px 10px;
             border-bottom:1px solid #1e2a3e;flex-wrap:wrap;flex-shrink:0;
@@ -17028,12 +17029,8 @@ syncRiskRs();
         }
         .sea-cat-btn:hover { border-color:#38bdf8;color:#7dd3fc; }
         .sea-cat-btn.active { background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#7dd3fc; }
-        .sea-body {
-            flex:1;overflow:auto;padding:0;min-height:200px;
-        }
-        .sea-list-table {
-            width:100%;border-collapse:collapse;font-size:12px;
-        }
+        .sea-body { flex:1;overflow:auto;padding:0;min-height:200px; }
+        .sea-list-table { width:100%;border-collapse:collapse;font-size:12px; }
         .sea-list-table th {
             position:sticky;top:0;background:#0f172a;color:#64748b;font-size:10px;font-weight:700;
             text-transform:uppercase;letter-spacing:0.4px;padding:8px 10px;text-align:left;
@@ -17042,9 +17039,7 @@ syncRiskRs();
         .sea-list-table th.num, .sea-list-table td.num { text-align:right; }
         .sea-list-table tr { cursor:pointer;transition:background 0.12s; }
         .sea-list-table tr:hover { background:rgba(56,189,248,0.07); }
-        .sea-list-table td {
-            padding:7px 10px;border-bottom:1px solid #1a2438;color:#cbd5e1;
-        }
+        .sea-list-table td { padding:7px 10px;border-bottom:1px solid #1a2438;color:#cbd5e1; }
         .sea-list-table .sym { font-weight:700;color:#e2e8f0; }
         .sea-pos { color:#4ade80;font-weight:600; }
         .sea-neg { color:#f87171;font-weight:600; }
@@ -17059,9 +17054,7 @@ syncRiskRs();
         }
         .sea-back-btn:hover { background:rgba(56,189,248,0.2); }
         .sea-heat-wrap { overflow:auto;padding:8px 12px 16px; }
-        .sea-heat-table {
-            border-collapse:collapse;font-size:11px;min-width:720px;
-        }
+        .sea-heat-table { border-collapse:collapse;font-size:11px;min-width:720px; }
         .sea-heat-table th {
             background:#0f172a;color:#64748b;font-size:10px;font-weight:700;
             padding:6px 7px;text-align:center;border:1px solid #1e293b;
@@ -17083,9 +17076,7 @@ syncRiskRs();
             background:#0c1424;font-weight:700;border-top:2px solid #1e3a5f;
         }
         .sea-heat-table tr.summary-row td.year-col { color:#38bdf8; }
-        .sea-empty {
-            padding:40px 20px;text-align:center;color:#64748b;font-size:13px;
-        }
+        .sea-empty { padding:40px 20px;text-align:center;color:#64748b;font-size:13px; }
         .sea-legend {
             display:flex;gap:14px;padding:6px 16px 10px;font-size:10px;color:#64748b;flex-wrap:wrap;
         }
@@ -17244,8 +17235,8 @@ syncRiskRs();
 
         
         <!-- ── Seasonal Screener ── -->
-        <div id="seasonal-scr-backdrop" onclick="closeSeasonalScreener()"></div>
-        <div id="seasonal-scr-modal">
+        <div id="seasonal-scr-backdrop" onclick="closeSeasonalScreener()" style="display:none;"></div>
+        <div id="seasonal-scr-modal" style="display:none;">
             <div class="sea-header">
                 <span class="sea-title">📅 Seasonal Screener</span>
                 <span id="sea-month-tag" style="font-size:12px;color:#7dd3fc;font-weight:600;"></span>
@@ -17390,14 +17381,9 @@ const REPO_ORIGIN = (() => {
     const o = (window.top && window.top.location && window.top.location.origin && window.top.location.origin !== 'null')
       ? window.top.location.origin
       : window.location.origin;
-    // file:// or empty origin cannot fetch relative data — fall back to live Pages
-    if (!o || o === 'null' || o.startsWith('file:')) {
-      return 'https://smcidea.github.io';
-    }
+    if (!o || o === 'null' || String(o).indexOf('file:') === 0) return 'https://smcidea.github.io';
     return o;
-  } catch (_) {
-    return 'https://smcidea.github.io';
-  }
+  } catch (_) { return 'https://smcidea.github.io'; }
 })();
 const GITHUB_DATA_URL = REPO_ORIGIN + '/data/nepse_ohlc.json';
 const GITHUB_FAST_URL = REPO_ORIGIN + '/data/nepse_ohlc_fast.json';
@@ -31351,113 +31337,96 @@ function bslOpenInstrument(name) {
 
 // ═══════════════════════════════════════════════════════════════
 //  SEASONAL SCREENER
-//  Multi-stock scan of historical monthly returns.
-//  Default: stocks with positive average return in the current calendar month.
-//  Click a stock → Year × Month heatmap + avg / win-rate.
 // ═══════════════════════════════════════════════════════════════
-var _seaResults = [];          // computed list results
-var _seaFilter = 'positive';   // positive | all | negative
+var _seaResults = [];
+var _seaFilter = 'positive';
 var _seaMinYears = 3;
-var _seaSort = 'avg';          // avg | winrate | symbol
-var _seaView = 'list';         // list | detail
+var _seaSort = 'avg';
+var _seaView = 'list';
 var _seaDetailSymbol = null;
-var _seaMonthIndex = (new Date()).getMonth(); // 0=Jan … 11=Dec
-var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var _seaMonthIndex = (new Date()).getMonth();
+var SEA_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function openSeasonalScreener() {
-    document.getElementById('seasonal-scr-backdrop').style.display = 'block';
-    document.getElementById('seasonal-scr-modal').style.display = 'flex';
+    var bd = document.getElementById('seasonal-scr-backdrop');
+    var md = document.getElementById('seasonal-scr-modal');
+    if (bd) bd.style.display = 'block';
+    if (md) { md.style.display = 'flex'; md.classList.add('sea-open'); }
     _seaMonthIndex = (new Date()).getMonth();
-    document.getElementById('sea-month-tag').textContent = 'Focus: ' + MONTH_NAMES[_seaMonthIndex];
-    if (typeof allInstruments === 'object' && Object.keys(allInstruments).length > 0 && _seaResults.length === 0) {
+    var tag = document.getElementById('sea-month-tag');
+    if (tag) tag.textContent = 'Focus: ' + SEA_MONTH_NAMES[_seaMonthIndex];
+    if (typeof allInstruments === 'object' && allInstruments && Object.keys(allInstruments).length > 0 && _seaResults.length === 0) {
         runSeasonalScreener();
     } else if (_seaResults.length) {
         renderSeasonalScreener();
     }
 }
 function closeSeasonalScreener() {
-    document.getElementById('seasonal-scr-backdrop').style.display = 'none';
-    document.getElementById('seasonal-scr-modal').style.display = 'none';
+    var bd = document.getElementById('seasonal-scr-backdrop');
+    var md = document.getElementById('seasonal-scr-modal');
+    if (bd) bd.style.display = 'none';
+    if (md) { md.style.display = 'none'; md.classList.remove('sea-open'); }
     _seaView = 'list';
     _seaDetailSymbol = null;
 }
 function seaSetFilter(btn) {
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-filter]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
-    _seaFilter = btn.dataset.filter;
+    _seaFilter = btn.getAttribute('data-filter');
     renderSeasonalScreener();
 }
 function seaSetMinYears(btn) {
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-minyears]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
-    _seaMinYears = parseInt(btn.dataset.minyears, 10) || 1;
+    _seaMinYears = parseInt(btn.getAttribute('data-minyears'), 10) || 1;
     renderSeasonalScreener();
 }
 function seaSetSort(btn) {
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
-    _seaSort = btn.dataset.sort;
+    _seaSort = btn.getAttribute('data-sort');
     renderSeasonalScreener();
 }
 
-/** Build { year: { monthIndex: closePrice } } from daily bars */
 function seaMonthlyCloses(bars) {
     if (!Array.isArray(bars) || !bars.length) return {};
-    // Prefer aggregateOHLC if available
-    var monthly;
+    var monthly = null;
     try {
-        if (typeof aggregateOHLC === 'function') {
-            monthly = aggregateOHLC(bars, 'M');
-        }
+        if (typeof aggregateOHLC === 'function') monthly = aggregateOHLC(bars, 'M');
     } catch (e) { monthly = null; }
     var byYearMonth = {};
-    if (monthly && monthly.length) {
-        monthly.forEach(function(b) {
-            var t = String(b.time || '');
-            // time may be 'YYYY-MM' or 'YYYY-MM-DD' or unix
-            var y, m;
-            if (/^\d{4}-\d{2}/.test(t)) {
-                y = parseInt(t.slice(0,4), 10);
-                m = parseInt(t.slice(5,7), 10) - 1;
-            } else if (Number.isFinite(Number(t)) && Number(t) > 1e9) {
-                var d = new Date(Number(t) * (Number(t) < 1e12 ? 1000 : 1));
-                y = d.getFullYear(); m = d.getMonth();
-            } else return;
-            if (!byYearMonth[y]) byYearMonth[y] = {};
-            byYearMonth[y][m] = Number(b.close);
-        });
-        return byYearMonth;
-    }
-    // Fallback: walk daily bars
-    bars.forEach(function(b) {
-        if (!b || b.close == null) return;
-        var t = String(b.time || b.date || '');
+    function ingest(t, close) {
         var y, m;
-        if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+        t = String(t || '');
+        if (/^\d{4}-\d{2}/.test(t)) {
             y = parseInt(t.slice(0,4), 10);
             m = parseInt(t.slice(5,7), 10) - 1;
-        } else if (Number.isFinite(Number(t))) {
+        } else if (Number.isFinite(Number(t)) && Number(t) > 1e9) {
             var d = new Date(Number(t) * (Number(t) < 1e12 ? 1000 : 1));
             y = d.getFullYear(); m = d.getMonth();
         } else return;
         if (!byYearMonth[y]) byYearMonth[y] = {};
-        byYearMonth[y][m] = Number(b.close); // last write wins → last day of month
-    });
+        byYearMonth[y][m] = Number(close);
+    }
+    if (monthly && monthly.length) {
+        monthly.forEach(function(b) { ingest(b.time, b.close); });
+    } else {
+        bars.forEach(function(b) {
+            if (!b || b.close == null) return;
+            ingest(b.time || b.date, b.close);
+        });
+    }
     return byYearMonth;
 }
 
-/** Compute month-over-month % returns for a symbol */
 function seaComputeReturns(symbol) {
     var bars = allInstruments[symbol];
     if (!bars || !bars.length) return null;
     var closes = seaMonthlyCloses(bars);
     var years = Object.keys(closes).map(Number).sort(function(a,b){ return a-b; });
-    if (years.length < 1) return null;
-
-    // returns[year][month] = pct change from previous month close
+    if (!years.length) return null;
     var returns = {};
     var prevClose = null;
-    var prevKey = null;
     years.forEach(function(y) {
         returns[y] = {};
         for (var m = 0; m < 12; m++) {
@@ -31467,11 +31436,8 @@ function seaComputeReturns(symbol) {
                 returns[y][m] = ((c - prevClose) / prevClose) * 100;
             }
             prevClose = c;
-            prevKey = y + '-' + m;
         }
     });
-
-    // Focus month stats
     var focusRets = [];
     years.forEach(function(y) {
         if (returns[y][_seaMonthIndex] != null && Number.isFinite(returns[y][_seaMonthIndex])) {
@@ -31479,26 +31445,21 @@ function seaComputeReturns(symbol) {
         }
     });
     if (!focusRets.length) return null;
-
-    var sum = focusRets.reduce(function(a, r){ return a + r.ret; }, 0);
+    var sum = 0;
+    for (var i = 0; i < focusRets.length; i++) sum += focusRets[i].ret;
     var avg = sum / focusRets.length;
-    var wins = focusRets.filter(function(r){ return r.ret > 0; }).length;
+    var wins = 0;
+    for (var i = 0; i < focusRets.length; i++) if (focusRets[i].ret > 0) wins++;
     var winRate = (wins / focusRets.length) * 100;
-    var best = focusRets.reduce(function(a, r){ return r.ret > a.ret ? r : a; }, focusRets[0]);
-    var worst = focusRets.reduce(function(a, r){ return r.ret < a.ret ? r : a; }, focusRets[0]);
-    var last = focusRets[focusRets.length - 1];
-
+    var best = focusRets[0], worst = focusRets[0];
+    for (var i = 1; i < focusRets.length; i++) {
+        if (focusRets[i].ret > best.ret) best = focusRets[i];
+        if (focusRets[i].ret < worst.ret) worst = focusRets[i];
+    }
     return {
-        symbol: symbol,
-        returns: returns,          // full year×month matrix
-        closes: closes,
-        focusRets: focusRets,
-        avg: avg,
-        winRate: winRate,
-        nYears: focusRets.length,
-        best: best,
-        worst: worst,
-        last: last
+        symbol: symbol, returns: returns, closes: closes, focusRets: focusRets,
+        avg: avg, winRate: winRate, nYears: focusRets.length,
+        best: best, worst: worst, last: focusRets[focusRets.length - 1]
     };
 }
 
@@ -31507,17 +31468,13 @@ function runSeasonalScreener() {
     if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
     var body = document.getElementById('sea-body');
     if (body) body.innerHTML = '<div class="sea-empty">Computing monthly returns…</div>';
-
-    // Yield so UI can update
     setTimeout(function() {
         var results = [];
         var names = Object.keys(allInstruments || {});
-        // Skip pure index-looking names that are not stocks if desired; keep all for now
-        names.forEach(function(sym) {
-            // Prefer actual stock symbols (have volume history or look like tickers)
-            var r = seaComputeReturns(sym);
+        for (var i = 0; i < names.length; i++) {
+            var r = seaComputeReturns(names[i]);
             if (r) results.push(r);
-        });
+        }
         _seaResults = results;
         _seaView = 'list';
         _seaDetailSymbol = null;
@@ -31541,40 +31498,37 @@ function renderSeasonalList() {
     var legend = document.getElementById('sea-legend');
     if (filterRow) filterRow.style.display = 'flex';
     if (legend) legend.style.display = 'flex';
-
     if (!_seaResults.length) {
-        body.innerHTML = '<div class="sea-empty">No data yet. Click <strong>▶ Scan All</strong>.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No data yet. Click <strong>▶ Scan All</strong>.</div>';
         if (countsEl) countsEl.textContent = '';
         return;
     }
-
-    var filtered = _seaResults.filter(function(r) {
-        if (r.nYears < _seaMinYears) return false;
-        if (_seaFilter === 'positive' && r.avg <= 0) return false;
-        if (_seaFilter === 'negative' && r.avg >= 0) return false;
-        return true;
-    });
-
+    var filtered = [];
+    for (var i = 0; i < _seaResults.length; i++) {
+        var r = _seaResults[i];
+        if (r.nYears < _seaMinYears) continue;
+        if (_seaFilter === 'positive' && r.avg <= 0) continue;
+        if (_seaFilter === 'negative' && r.avg >= 0) continue;
+        filtered.push(r);
+    }
     filtered.sort(function(a, b) {
         if (_seaSort === 'winrate') return b.winRate - a.winRate || b.avg - a.avg;
-        if (_seaSort === 'symbol') return a.symbol.localeCompare(b.symbol);
-        return b.avg - a.avg || b.winRate - a.winRate; // default avg
+        if (_seaSort === 'symbol') return a.symbol < b.symbol ? -1 : (a.symbol > b.symbol ? 1 : 0);
+        return b.avg - a.avg || b.winRate - a.winRate;
     });
-
-    if (countsEl) {
-        countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' stocks · ' + MONTH_NAMES[_seaMonthIndex];
-    }
-
+    if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' stocks · ' + SEA_MONTH_NAMES[_seaMonthIndex];
     if (!filtered.length) {
-        body.innerHTML = '<div class="sea-empty">No stocks match the current filters.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No stocks match the current filters.</div>';
         return;
     }
-
-    var rows = filtered.map(function(r) {
+    var rows = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var r = filtered[i];
         var avgCls = r.avg > 0 ? 'sea-pos' : (r.avg < 0 ? 'sea-neg' : 'sea-muted');
         var lastCls = r.last.ret > 0 ? 'sea-pos' : (r.last.ret < 0 ? 'sea-neg' : 'sea-muted');
         var wrCls = r.winRate >= 60 ? 'sea-pos' : (r.winRate >= 45 ? '' : 'sea-neg');
-        return '<tr onclick="seaOpenDetail(\'' + r.symbol.replace(/'/g, "\\'") + '\')">'
+        var symEsc = r.symbol.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        rows += '<tr onclick="seaOpenDetail(\\'' + symEsc + '\\')">'
             + '<td class="sym">' + r.symbol + '</td>'
             + '<td class="num ' + avgCls + '">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
             + '<td class="num ' + wrCls + '">' + r.winRate.toFixed(0) + '%</td>'
@@ -31583,11 +31537,10 @@ function renderSeasonalList() {
             + '<td class="num sea-pos">' + (r.best.ret >= 0 ? '+' : '') + r.best.ret.toFixed(1) + '% <span class="sea-muted">(' + r.best.year + ')</span></td>'
             + '<td class="num sea-neg">' + (r.worst.ret >= 0 ? '+' : '') + r.worst.ret.toFixed(1) + '% <span class="sea-muted">(' + r.worst.year + ')</span></td>'
             + '</tr>';
-    }).join('');
-
+    }
     body.innerHTML = '<table class="sea-list-table"><thead><tr>'
         + '<th>Symbol</th>'
-        + '<th class="num">Avg ' + MONTH_NAMES[_seaMonthIndex] + '</th>'
+        + '<th class="num">Avg ' + SEA_MONTH_NAMES[_seaMonthIndex] + '</th>'
         + '<th class="num">Win Rate</th>'
         + '<th class="num">Years</th>'
         + '<th class="num">Last</th>'
@@ -31601,7 +31554,6 @@ function seaOpenDetail(symbol) {
     _seaDetailSymbol = symbol;
     renderSeasonalDetail(symbol);
 }
-
 function seaBackToList() {
     _seaView = 'list';
     _seaDetailSymbol = null;
@@ -31615,54 +31567,44 @@ function renderSeasonalDetail(symbol) {
     var countsEl = document.getElementById('sea-counts');
     if (filterRow) filterRow.style.display = 'none';
     if (legend) legend.style.display = 'none';
-
     var r = null;
     for (var i = 0; i < _seaResults.length; i++) {
         if (_seaResults[i].symbol === symbol) { r = _seaResults[i]; break; }
     }
+    if (!r) r = seaComputeReturns(symbol);
     if (!r) {
-        // recompute on the fly
-        r = seaComputeReturns(symbol);
-    }
-    if (!r) {
-        body.innerHTML = '<div class="sea-empty">No data for ' + symbol + '</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No data for ' + symbol + '</div>';
         return;
     }
-
     if (countsEl) countsEl.textContent = symbol;
-
-    var years = Object.keys(r.returns).map(Number).sort(function(a,b){ return b - a; }); // newest first
-
-    // Summary stats per month
+    var years = Object.keys(r.returns).map(Number).sort(function(a,b){ return b - a; });
     var monthStats = [];
     for (var m = 0; m < 12; m++) {
         var vals = [];
-        years.forEach(function(y) {
-            if (r.returns[y] && r.returns[y][m] != null && Number.isFinite(r.returns[y][m])) {
-                vals.push(r.returns[y][m]);
-            }
-        });
+        for (var yi = 0; yi < years.length; yi++) {
+            var y = years[yi];
+            if (r.returns[y] && r.returns[y][m] != null && Number.isFinite(r.returns[y][m])) vals.push(r.returns[y][m]);
+        }
         var avg = vals.length ? vals.reduce(function(a,v){return a+v;},0) / vals.length : null;
         var wr = vals.length ? (vals.filter(function(v){return v>0;}).length / vals.length * 100) : null;
         monthStats.push({ avg: avg, winRate: wr, n: vals.length });
     }
-
+    var symEsc = symbol.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var header = '<div class="sea-detail-header">'
         + '<button class="sea-back-btn" onclick="seaBackToList()">← Back to list</button>'
         + '<strong style="color:#e2e8f0;font-size:14px;">' + symbol + '</strong>'
-        + '<span style="color:#64748b;font-size:11px;">Year × Month returns · click any month header to focus</span>'
-        + '<button class="sea-back-btn" style="margin-left:auto;" onclick="seaOpenInChart(\'' + symbol.replace(/'/g,"\\'") + '\')">Open in Chart →</button>'
+        + '<span style="color:#64748b;font-size:11px;">Year × Month returns</span>'
+        + '<button class="sea-back-btn" style="margin-left:auto;" onclick="seaOpenInChart(\\'' + symEsc + '\\')">Open in Chart →</button>'
         + '</div>';
-
     var thead = '<tr><th class="year-col">Year</th>';
     for (var m = 0; m < 12; m++) {
         var focusStyle = m === _seaMonthIndex ? ' style="color:#38bdf8;border-bottom:2px solid #38bdf8;"' : '';
-        thead += '<th' + focusStyle + '>' + MONTH_NAMES[m] + '</th>';
+        thead += '<th' + focusStyle + '>' + SEA_MONTH_NAMES[m] + '</th>';
     }
     thead += '</tr>';
-
     var tbody = '';
-    years.forEach(function(y) {
+    for (var yi = 0; yi < years.length; yi++) {
+        var y = years[yi];
         tbody += '<tr><td class="year-col">' + y + '</td>';
         for (var m = 0; m < 12; m++) {
             var val = r.returns[y] ? r.returns[y][m] : null;
@@ -31670,51 +31612,42 @@ function renderSeasonalDetail(symbol) {
                 tbody += '<td class="sea-heat-na">—</td>';
             } else {
                 var cls = val > 0.05 ? 'sea-heat-pos' : (val < -0.05 ? 'sea-heat-neg' : 'sea-heat-zero');
-                var sign = val > 0 ? '+' : '';
-                tbody += '<td class="' + cls + '">' + sign + val.toFixed(2) + '%</td>';
+                tbody += '<td class="' + cls + '">' + (val > 0 ? '+' : '') + val.toFixed(2) + '%</td>';
             }
         }
         tbody += '</tr>';
-    });
-
-    // Average row
+    }
     tbody += '<tr class="summary-row"><td class="year-col">Avg</td>';
-    monthStats.forEach(function(s) {
-        if (s.avg == null) {
-            tbody += '<td class="sea-heat-na">—</td>';
-        } else {
+    for (var m = 0; m < 12; m++) {
+        var s = monthStats[m];
+        if (s.avg == null) tbody += '<td class="sea-heat-na">—</td>';
+        else {
             var cls = s.avg > 0.05 ? 'sea-heat-pos' : (s.avg < -0.05 ? 'sea-heat-neg' : 'sea-heat-zero');
-            var sign = s.avg > 0 ? '+' : '';
-            tbody += '<td class="' + cls + '">' + sign + s.avg.toFixed(2) + '%</td>';
+            tbody += '<td class="' + cls + '">' + (s.avg > 0 ? '+' : '') + s.avg.toFixed(2) + '%</td>';
         }
-    });
+    }
     tbody += '</tr>';
-
-    // Win-rate row
     tbody += '<tr class="summary-row"><td class="year-col">Win%</td>';
-    monthStats.forEach(function(s) {
-        if (s.winRate == null) {
-            tbody += '<td class="sea-heat-na">—</td>';
-        } else {
+    for (var m = 0; m < 12; m++) {
+        var s = monthStats[m];
+        if (s.winRate == null) tbody += '<td class="sea-heat-na">—</td>';
+        else {
             var cls = s.winRate >= 60 ? 'sea-heat-pos' : (s.winRate < 40 ? 'sea-heat-neg' : 'sea-heat-zero');
             tbody += '<td class="' + cls + '">' + s.winRate.toFixed(0) + '%</td>';
         }
-    });
+    }
     tbody += '</tr>';
-
-    // N years row
     tbody += '<tr class="summary-row"><td class="year-col">N</td>';
-    monthStats.forEach(function(s) {
-        tbody += '<td class="sea-muted">' + (s.n || '—') + '</td>';
-    });
+    for (var m = 0; m < 12; m++) {
+        tbody += '<td class="sea-muted">' + (monthStats[m].n || '—') + '</td>';
+    }
     tbody += '</tr>';
-
     body.innerHTML = header
         + '<div class="sea-heat-wrap"><table class="sea-heat-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>'
         + '<div class="sea-legend" style="display:flex;">'
         + '<span><span class="sea-swatch" style="background:rgba(74,222,128,0.35);"></span> Positive</span>'
         + '<span><span class="sea-swatch" style="background:rgba(248,113,113,0.3);"></span> Negative</span>'
-        + '<span>Avg = mean monthly return across years · Win% = % of years positive · N = observations</span>'
+        + '<span>Avg = mean return · Win% = % years positive · N = observations</span>'
         + '</div>';
 }
 
