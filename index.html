@@ -31367,6 +31367,13 @@ function openSeasonalScreener() {
     var md = document.getElementById('seasonal-scr-modal');
     if (bd) bd.style.display = 'block';
     if (md) md.style.display = 'flex';
+    var filterRow = document.getElementById('sea-filter-row');
+    var customRow = document.getElementById('sea-custom-row');
+    var legend = document.getElementById('sea-legend');
+    if (filterRow) filterRow.style.display = 'flex';
+    if (customRow) customRow.style.display = (_seaUniverse === 'custom') ? 'flex' : 'none';
+    if (legend) legend.style.display = 'flex';
+    _seaView = 'list';
     _seaMonthIndex = (new Date()).getMonth();
     var tag = document.getElementById('sea-month-tag');
     if (tag) tag.textContent = 'Focus: ' + SEA_MONTH_NAMES[_seaMonthIndex];
@@ -31436,45 +31443,70 @@ function seaSetUniverse(btn) {
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     _seaUniverse = btn.getAttribute('data-universe') || 'all';
-    var row = document.getElementById('sea-custom-row');
-    if (row) row.style.display = (_seaUniverse === 'custom') ? 'flex' : 'none';
+    var filterRow = document.getElementById('sea-filter-row');
+    var customRow = document.getElementById('sea-custom-row');
+    var legend = document.getElementById('sea-legend');
+    if (filterRow) filterRow.style.display = 'flex';
+    if (legend) legend.style.display = 'flex';
+    if (customRow) customRow.style.display = (_seaUniverse === 'custom') ? 'flex' : 'none';
+    _seaView = 'list';
+    _seaDetailSymbol = null;
     if (_seaUniverse === 'custom' && !_seaCustomList.length) {
         var body = document.getElementById('sea-body');
-        if (body) body.innerHTML = '<div class="sea-empty">Enter symbols above (comma or space separated), then click <strong>Apply</strong>.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">Enter symbols above (comma or space separated), then click <strong>Apply</strong>.<br>Or switch back to <strong>All + Index</strong>.</div>';
+        var countsEl = document.getElementById('sea-counts');
+        if (countsEl) countsEl.textContent = '';
         return;
     }
-    // Re-scan when switching universe so Index / custom set is fresh
     if (typeof allInstruments === 'object' && allInstruments && Object.keys(allInstruments).length) {
         runSeasonalScreener();
     } else {
         renderSeasonalScreener();
     }
 }
+
 function seaApplyCustom() {
     var inp = document.getElementById('sea-custom-input');
     var hint = document.getElementById('sea-custom-hint');
-    var raw = (inp && inp.value) ? inp.value : '';
+    var filterRow = document.getElementById('sea-filter-row');
+    if (filterRow) filterRow.style.display = 'flex';
+    var raw = (inp && inp.value) ? inp.value.trim() : '';
+    if (!raw) {
+        // Empty input → return to full universe
+        _seaCustomList = [];
+        _seaUniverse = 'all';
+        document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){
+            b.classList.toggle('active', b.getAttribute('data-universe') === 'all');
+        });
+        var customRow = document.getElementById('sea-custom-row');
+        if (customRow) customRow.style.display = 'none';
+        if (hint) { hint.textContent = ''; }
+        runSeasonalScreener();
+        return;
+    }
     var parts = raw.split(/[\s,;]+/).map(function(s){ return s.trim().toUpperCase(); }).filter(Boolean);
-    // de-dupe
     var seen = {};
     _seaCustomList = [];
     for (var i = 0; i < parts.length; i++) {
         if (!seen[parts[i]]) { seen[parts[i]] = 1; _seaCustomList.push(parts[i]); }
     }
-    // Map friendly names
     _seaCustomList = _seaCustomList.map(function(s) {
         if (s === 'NEPSE' || s === 'NEPSEINDEX' || s === 'NEPSE_INDEX') return 'Index';
         return s;
     });
     var found = 0, missing = [];
+    var allNames = Object.keys(allInstruments || {});
     for (var i = 0; i < _seaCustomList.length; i++) {
         var sym = _seaCustomList[i];
-        var ok = allInstruments[sym] || allInstruments[sym.toUpperCase()] || allInstruments[sym.toLowerCase()];
-        // try case-insensitive lookup
-        if (!ok && allInstruments) {
-            var keys = Object.keys(allInstruments);
-            for (var k = 0; k < keys.length; k++) {
-                if (keys[k].toUpperCase() === sym) { ok = true; _seaCustomList[i] = keys[k]; break; }
+        var ok = false;
+        if (allInstruments[sym]) ok = true;
+        else {
+            for (var k = 0; k < allNames.length; k++) {
+                if (String(allNames[k]).toUpperCase() === sym) {
+                    _seaCustomList[i] = allNames[k];
+                    ok = true;
+                    break;
+                }
             }
         }
         if (ok) found++; else missing.push(sym);
@@ -31487,10 +31519,13 @@ function seaApplyCustom() {
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){
         b.classList.toggle('active', b.getAttribute('data-universe') === 'custom');
     });
-    var row = document.getElementById('sea-custom-row');
-    if (row) row.style.display = 'flex';
+    var customRow = document.getElementById('sea-custom-row');
+    if (customRow) customRow.style.display = 'flex';
+    _seaView = 'list';
+    _seaDetailSymbol = null;
     runSeasonalScreener();
 }
+
 function seaUniverseNames() {
     var allNames = Object.keys(allInstruments || {});
     if (_seaUniverse === 'custom') {
@@ -31644,8 +31679,10 @@ function renderSeasonalList() {
     var body = document.getElementById('sea-body');
     var countsEl = document.getElementById('sea-counts');
     var filterRow = document.getElementById('sea-filter-row');
+    var customRow = document.getElementById('sea-custom-row');
     var legend = document.getElementById('sea-legend');
     if (filterRow) filterRow.style.display = 'flex';
+    if (customRow) customRow.style.display = (_seaUniverse === 'custom') ? 'flex' : 'none';
     if (legend) legend.style.display = 'flex';
     if (!_seaResults.length) {
         if (body) body.innerHTML = '<div class="sea-empty">No data yet. Click <strong>▶ Scan All</strong>.</div>';
