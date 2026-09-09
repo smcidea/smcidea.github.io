@@ -16992,6 +16992,106 @@ syncRiskRs();
             .dr-tf-btn.active { border-color:#22d3ee; background:rgba(34,211,238,.14); color:#a5f3fc; }
             body.light-theme.smc-app .dr-tf-btn { border-color:#67a9b9; color:#155e75; }
             body.light-theme.smc-app .dr-tf-btn.active { border-color:#0891b2; background:rgba(34,211,238,.14); color:#0e7490; }
+        
+        /* ── Seasonal Screener ── */
+        #seasonal-scr-backdrop {
+            display:none;position:fixed;inset:0;z-index:902;background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);
+        }
+        #seasonal-scr-modal {
+            display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:903;width:min(1100px,97vw);max-height:90vh;
+            background:#12122a;border:1px solid #1e3a5f;border-radius:12px;
+            box-shadow:0 20px 60px rgba(0,0,0,0.75);flex-direction:column;overflow:hidden;
+        }
+        #seasonal-scr-modal .sea-header {
+            display:flex;align-items:center;gap:10px;padding:12px 16px 10px;
+            border-bottom:1px solid #1e2a3e;flex-wrap:wrap;flex-shrink:0;
+        }
+        #seasonal-scr-modal .sea-title {
+            font-size:15px;font-weight:800;color:#38bdf8;letter-spacing:0.3px;margin-right:4px;
+        }
+        #seasonal-scr-modal .sea-run-btn {
+            padding:5px 14px;border-radius:6px;border:1px solid #38bdf8;
+            background:rgba(56,189,248,0.12);color:#38bdf8;font-size:12px;font-weight:700;
+            cursor:pointer;transition:all 0.15s;white-space:nowrap;margin-left:auto;
+        }
+        #seasonal-scr-modal .sea-run-btn:hover { background:rgba(56,189,248,0.22); }
+        #seasonal-scr-modal .sea-run-btn:disabled { opacity:0.5;cursor:default; }
+        .sea-filter-row {
+            display:flex;align-items:center;gap:6px;padding:8px 16px;
+            border-bottom:1px solid #1a2a3a;flex-wrap:wrap;flex-shrink:0;background:rgba(0,0,0,0.18);
+        }
+        .sea-filter-label { font-size:9.5px;color:#4a6a8a;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap; }
+        .sea-cat-btn {
+            padding:3px 10px;border-radius:5px;border:1px solid #2a3a4a;
+            background:transparent;color:#556677;font-size:11px;cursor:pointer;transition:all 0.15s;
+        }
+        .sea-cat-btn:hover { border-color:#38bdf8;color:#7dd3fc; }
+        .sea-cat-btn.active { background:rgba(56,189,248,0.15);border-color:#38bdf8;color:#7dd3fc; }
+        .sea-body {
+            flex:1;overflow:auto;padding:0;min-height:200px;
+        }
+        .sea-list-table {
+            width:100%;border-collapse:collapse;font-size:12px;
+        }
+        .sea-list-table th {
+            position:sticky;top:0;background:#0f172a;color:#64748b;font-size:10px;font-weight:700;
+            text-transform:uppercase;letter-spacing:0.4px;padding:8px 10px;text-align:left;
+            border-bottom:1px solid #1e293b;z-index:2;
+        }
+        .sea-list-table th.num, .sea-list-table td.num { text-align:right; }
+        .sea-list-table tr { cursor:pointer;transition:background 0.12s; }
+        .sea-list-table tr:hover { background:rgba(56,189,248,0.07); }
+        .sea-list-table td {
+            padding:7px 10px;border-bottom:1px solid #1a2438;color:#cbd5e1;
+        }
+        .sea-list-table .sym { font-weight:700;color:#e2e8f0; }
+        .sea-pos { color:#4ade80;font-weight:600; }
+        .sea-neg { color:#f87171;font-weight:600; }
+        .sea-muted { color:#64748b; }
+        .sea-detail-header {
+            display:flex;align-items:center;gap:12px;padding:10px 16px;
+            border-bottom:1px solid #1e2a3e;background:rgba(0,0,0,0.2);flex-wrap:wrap;
+        }
+        .sea-back-btn {
+            padding:4px 12px;border-radius:5px;border:1px solid #38bdf8;
+            background:rgba(56,189,248,0.1);color:#38bdf8;font-size:11px;font-weight:600;cursor:pointer;
+        }
+        .sea-back-btn:hover { background:rgba(56,189,248,0.2); }
+        .sea-heat-wrap { overflow:auto;padding:8px 12px 16px; }
+        .sea-heat-table {
+            border-collapse:collapse;font-size:11px;min-width:720px;
+        }
+        .sea-heat-table th {
+            background:#0f172a;color:#64748b;font-size:10px;font-weight:700;
+            padding:6px 7px;text-align:center;border:1px solid #1e293b;
+            position:sticky;top:0;z-index:1;
+        }
+        .sea-heat-table th.year-col { text-align:left;padding-left:10px;min-width:52px; }
+        .sea-heat-table td {
+            padding:5px 6px;text-align:center;border:1px solid #1a2438;
+            font-variant-numeric:tabular-nums;min-width:52px;
+        }
+        .sea-heat-table td.year-col {
+            text-align:left;padding-left:10px;font-weight:700;color:#94a3b8;background:#0f172a;
+        }
+        .sea-heat-pos { background:rgba(74,222,128,0.18);color:#4ade80; }
+        .sea-heat-neg { background:rgba(248,113,113,0.15);color:#f87171; }
+        .sea-heat-zero { background:rgba(100,116,139,0.12);color:#94a3b8; }
+        .sea-heat-na { color:#334155; }
+        .sea-heat-table tr.summary-row td {
+            background:#0c1424;font-weight:700;border-top:2px solid #1e3a5f;
+        }
+        .sea-heat-table tr.summary-row td.year-col { color:#38bdf8; }
+        .sea-empty {
+            padding:40px 20px;text-align:center;color:#64748b;font-size:13px;
+        }
+        .sea-legend {
+            display:flex;gap:14px;padding:6px 16px 10px;font-size:10px;color:#64748b;flex-wrap:wrap;
+        }
+        .sea-legend span { display:inline-flex;align-items:center;gap:4px; }
+        .sea-swatch { width:12px;height:12px;border-radius:3px;display:inline-block; }
+
         </style>
         <!-- ── Dealing Range Screener Modal ── -->
         <div id="dealing-range-scr-backdrop" onclick="closeDealingRangeScreener()" style="display:none;position:fixed;inset:0;z-index:906;background:rgba(0,0,0,0.65);backdrop-filter:blur(3px);"></div>
@@ -17142,6 +17242,42 @@ syncRiskRs();
         </div>
 
 
+        
+        <!-- ── Seasonal Screener ── -->
+        <div id="seasonal-scr-backdrop" onclick="closeSeasonalScreener()"></div>
+        <div id="seasonal-scr-modal">
+            <div class="sea-header">
+                <span class="sea-title">📅 Seasonal Screener</span>
+                <span id="sea-month-tag" style="font-size:12px;color:#7dd3fc;font-weight:600;"></span>
+                <span id="sea-counts" style="font-size:11px;color:#4a6a8a;"></span>
+                <button class="sea-run-btn" id="sea-run-btn" onclick="runSeasonalScreener()">▶ Scan All</button>
+                <button onclick="closeSeasonalScreener()" style="background:none;border:none;color:#4a6a8a;font-size:18px;cursor:pointer;padding:0 0 0 4px;line-height:1;" title="Close">✕</button>
+            </div>
+            <div class="sea-filter-row" id="sea-filter-row">
+                <span class="sea-filter-label">Show</span>
+                <button class="sea-cat-btn active" data-filter="positive" onclick="seaSetFilter(this)">Positive only</button>
+                <button class="sea-cat-btn" data-filter="all" onclick="seaSetFilter(this)">All</button>
+                <button class="sea-cat-btn" data-filter="negative" onclick="seaSetFilter(this)">Negative only</button>
+                <span class="sea-filter-label" style="margin-left:10px;">Min years</span>
+                <button class="sea-cat-btn active" data-minyears="3" onclick="seaSetMinYears(this)">≥3</button>
+                <button class="sea-cat-btn" data-minyears="5" onclick="seaSetMinYears(this)">≥5</button>
+                <button class="sea-cat-btn" data-minyears="1" onclick="seaSetMinYears(this)">≥1</button>
+                <span class="sea-filter-label" style="margin-left:10px;">Sort</span>
+                <button class="sea-cat-btn active" data-sort="avg" onclick="seaSetSort(this)">Avg Return</button>
+                <button class="sea-cat-btn" data-sort="winrate" onclick="seaSetSort(this)">Win Rate</button>
+                <button class="sea-cat-btn" data-sort="symbol" onclick="seaSetSort(this)">Symbol</button>
+            </div>
+            <div class="sea-body" id="sea-body">
+                <div class="sea-empty">Click <strong>▶ Scan All</strong> to compute historical monthly returns for all stocks.</div>
+            </div>
+            <div class="sea-legend" id="sea-legend">
+                <span><span class="sea-swatch" style="background:rgba(74,222,128,0.35);"></span> Positive</span>
+                <span><span class="sea-swatch" style="background:rgba(248,113,113,0.3);"></span> Negative</span>
+                <span>Click any row to open Year × Month heatmap with averages &amp; win-rates</span>
+            </div>
+        </div>
+
+
         <!-- ── Pattern Spotlight Banner (sits below Draw button) ── -->
         <div id="spotlight-banner">
             <span style="font-size:13px;">🔦</span>
@@ -17182,6 +17318,7 @@ syncRiskRs();
                 <button class="btn" id="dealing-range-screener-btn" onclick="event.stopPropagation();openDealingRangeScreener()" title="Dealing Range Screener — find premium/discount zones across completed higher-timeframe ranges" style="font-size:10px;padding:2px 8px;margin:0 2px 0 0;pointer-events:auto;border-color:#22d3ee;color:#22d3ee;background:rgba(34,211,238,0.08);">◫ Dealing Range</button>
                 <button class="btn" id="obw-screener-btn" onclick="event.stopPropagation();openObwScreener()" title="OB Wave Screener — find fresh buy signals and awaiting setups" style="font-size:10px;padding:2px 8px;margin:0 2px 0 0;pointer-events:auto;border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,0.08);">⊡ OrderBlock Wave</button>
                 <button class="btn" id="bsl-screener-btn" onclick="event.stopPropagation();openBslScreener()" title="BSL/SSL Buy Screener — find instruments approaching or hitting monthly BSL buy level" style="font-size:10px;padding:2px 8px;margin:0 2px 0 0;pointer-events:auto;border-color:#f97316;color:#f97316;background:rgba(249,115,22,0.08);">■ BSL/SSL</button>
+                <button class="btn" id="seasonal-screener-btn" onclick="event.stopPropagation();openSeasonalScreener()" title="Seasonal Screener — historical monthly returns for all stocks" style="font-size:10px;padding:2px 8px;margin:0 2px 0 0;pointer-events:auto;border-color:#38bdf8;color:#38bdf8;background:rgba(56,189,248,0.08);">📅 Seasonal</button>
                 <button class="btn" id="tog-watchlist" onclick="event.stopPropagation();toggleWatchlistPanel()" title="Watchlist price alerts" style="font-size:10px;padding:2px 8px;margin:0 2px 0 0;pointer-events:auto;border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,0.10);">★ Watchlist</button>
 
                 <span id="mf-arrow" style="font-size:9px;transition:transform 0.2s;">▶</span>
@@ -17248,7 +17385,20 @@ syncRiskRs();
 // ═══════════════════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════════════════
-const REPO_ORIGIN = (() => { try { return (window.top && window.top.location && window.top.location.origin && window.top.location.origin !== 'null') ? window.top.location.origin : window.location.origin; } catch (_) { return window.location.origin; } })();
+const REPO_ORIGIN = (() => {
+  try {
+    const o = (window.top && window.top.location && window.top.location.origin && window.top.location.origin !== 'null')
+      ? window.top.location.origin
+      : window.location.origin;
+    // file:// or empty origin cannot fetch relative data — fall back to live Pages
+    if (!o || o === 'null' || o.startsWith('file:')) {
+      return 'https://smcidea.github.io';
+    }
+    return o;
+  } catch (_) {
+    return 'https://smcidea.github.io';
+  }
+})();
 const GITHUB_DATA_URL = REPO_ORIGIN + '/data/nepse_ohlc.json';
 const GITHUB_FAST_URL = REPO_ORIGIN + '/data/nepse_ohlc_fast.json';
 const CHUNK_MANIFEST_URL = REPO_ORIGIN + '/data/chunks/manifest.json';
@@ -31195,6 +31345,386 @@ function bslOpenInstrument(name) {
     updateTriggerLabel();
     screenerActivateTools('bslssl');
     switchInstrumentData();
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SEASONAL SCREENER
+//  Multi-stock scan of historical monthly returns.
+//  Default: stocks with positive average return in the current calendar month.
+//  Click a stock → Year × Month heatmap + avg / win-rate.
+// ═══════════════════════════════════════════════════════════════
+var _seaResults = [];          // computed list results
+var _seaFilter = 'positive';   // positive | all | negative
+var _seaMinYears = 3;
+var _seaSort = 'avg';          // avg | winrate | symbol
+var _seaView = 'list';         // list | detail
+var _seaDetailSymbol = null;
+var _seaMonthIndex = (new Date()).getMonth(); // 0=Jan … 11=Dec
+var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function openSeasonalScreener() {
+    document.getElementById('seasonal-scr-backdrop').style.display = 'block';
+    document.getElementById('seasonal-scr-modal').style.display = 'flex';
+    _seaMonthIndex = (new Date()).getMonth();
+    document.getElementById('sea-month-tag').textContent = 'Focus: ' + MONTH_NAMES[_seaMonthIndex];
+    if (typeof allInstruments === 'object' && Object.keys(allInstruments).length > 0 && _seaResults.length === 0) {
+        runSeasonalScreener();
+    } else if (_seaResults.length) {
+        renderSeasonalScreener();
+    }
+}
+function closeSeasonalScreener() {
+    document.getElementById('seasonal-scr-backdrop').style.display = 'none';
+    document.getElementById('seasonal-scr-modal').style.display = 'none';
+    _seaView = 'list';
+    _seaDetailSymbol = null;
+}
+function seaSetFilter(btn) {
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-filter]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    _seaFilter = btn.dataset.filter;
+    renderSeasonalScreener();
+}
+function seaSetMinYears(btn) {
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-minyears]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    _seaMinYears = parseInt(btn.dataset.minyears, 10) || 1;
+    renderSeasonalScreener();
+}
+function seaSetSort(btn) {
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    _seaSort = btn.dataset.sort;
+    renderSeasonalScreener();
+}
+
+/** Build { year: { monthIndex: closePrice } } from daily bars */
+function seaMonthlyCloses(bars) {
+    if (!Array.isArray(bars) || !bars.length) return {};
+    // Prefer aggregateOHLC if available
+    var monthly;
+    try {
+        if (typeof aggregateOHLC === 'function') {
+            monthly = aggregateOHLC(bars, 'M');
+        }
+    } catch (e) { monthly = null; }
+    var byYearMonth = {};
+    if (monthly && monthly.length) {
+        monthly.forEach(function(b) {
+            var t = String(b.time || '');
+            // time may be 'YYYY-MM' or 'YYYY-MM-DD' or unix
+            var y, m;
+            if (/^\d{4}-\d{2}/.test(t)) {
+                y = parseInt(t.slice(0,4), 10);
+                m = parseInt(t.slice(5,7), 10) - 1;
+            } else if (Number.isFinite(Number(t)) && Number(t) > 1e9) {
+                var d = new Date(Number(t) * (Number(t) < 1e12 ? 1000 : 1));
+                y = d.getFullYear(); m = d.getMonth();
+            } else return;
+            if (!byYearMonth[y]) byYearMonth[y] = {};
+            byYearMonth[y][m] = Number(b.close);
+        });
+        return byYearMonth;
+    }
+    // Fallback: walk daily bars
+    bars.forEach(function(b) {
+        if (!b || b.close == null) return;
+        var t = String(b.time || b.date || '');
+        var y, m;
+        if (/^\d{4}-\d{2}-\d{2}/.test(t)) {
+            y = parseInt(t.slice(0,4), 10);
+            m = parseInt(t.slice(5,7), 10) - 1;
+        } else if (Number.isFinite(Number(t))) {
+            var d = new Date(Number(t) * (Number(t) < 1e12 ? 1000 : 1));
+            y = d.getFullYear(); m = d.getMonth();
+        } else return;
+        if (!byYearMonth[y]) byYearMonth[y] = {};
+        byYearMonth[y][m] = Number(b.close); // last write wins → last day of month
+    });
+    return byYearMonth;
+}
+
+/** Compute month-over-month % returns for a symbol */
+function seaComputeReturns(symbol) {
+    var bars = allInstruments[symbol];
+    if (!bars || !bars.length) return null;
+    var closes = seaMonthlyCloses(bars);
+    var years = Object.keys(closes).map(Number).sort(function(a,b){ return a-b; });
+    if (years.length < 1) return null;
+
+    // returns[year][month] = pct change from previous month close
+    var returns = {};
+    var prevClose = null;
+    var prevKey = null;
+    years.forEach(function(y) {
+        returns[y] = {};
+        for (var m = 0; m < 12; m++) {
+            var c = closes[y][m];
+            if (c == null || !Number.isFinite(c)) continue;
+            if (prevClose != null && prevClose > 0) {
+                returns[y][m] = ((c - prevClose) / prevClose) * 100;
+            }
+            prevClose = c;
+            prevKey = y + '-' + m;
+        }
+    });
+
+    // Focus month stats
+    var focusRets = [];
+    years.forEach(function(y) {
+        if (returns[y][_seaMonthIndex] != null && Number.isFinite(returns[y][_seaMonthIndex])) {
+            focusRets.push({ year: y, ret: returns[y][_seaMonthIndex] });
+        }
+    });
+    if (!focusRets.length) return null;
+
+    var sum = focusRets.reduce(function(a, r){ return a + r.ret; }, 0);
+    var avg = sum / focusRets.length;
+    var wins = focusRets.filter(function(r){ return r.ret > 0; }).length;
+    var winRate = (wins / focusRets.length) * 100;
+    var best = focusRets.reduce(function(a, r){ return r.ret > a.ret ? r : a; }, focusRets[0]);
+    var worst = focusRets.reduce(function(a, r){ return r.ret < a.ret ? r : a; }, focusRets[0]);
+    var last = focusRets[focusRets.length - 1];
+
+    return {
+        symbol: symbol,
+        returns: returns,          // full year×month matrix
+        closes: closes,
+        focusRets: focusRets,
+        avg: avg,
+        winRate: winRate,
+        nYears: focusRets.length,
+        best: best,
+        worst: worst,
+        last: last
+    };
+}
+
+function runSeasonalScreener() {
+    var btn = document.getElementById('sea-run-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
+    var body = document.getElementById('sea-body');
+    if (body) body.innerHTML = '<div class="sea-empty">Computing monthly returns…</div>';
+
+    // Yield so UI can update
+    setTimeout(function() {
+        var results = [];
+        var names = Object.keys(allInstruments || {});
+        // Skip pure index-looking names that are not stocks if desired; keep all for now
+        names.forEach(function(sym) {
+            // Prefer actual stock symbols (have volume history or look like tickers)
+            var r = seaComputeReturns(sym);
+            if (r) results.push(r);
+        });
+        _seaResults = results;
+        _seaView = 'list';
+        _seaDetailSymbol = null;
+        if (btn) { btn.disabled = false; btn.textContent = '▶ Scan All'; }
+        renderSeasonalScreener();
+    }, 30);
+}
+
+function renderSeasonalScreener() {
+    if (_seaView === 'detail' && _seaDetailSymbol) {
+        renderSeasonalDetail(_seaDetailSymbol);
+        return;
+    }
+    renderSeasonalList();
+}
+
+function renderSeasonalList() {
+    var body = document.getElementById('sea-body');
+    var countsEl = document.getElementById('sea-counts');
+    var filterRow = document.getElementById('sea-filter-row');
+    var legend = document.getElementById('sea-legend');
+    if (filterRow) filterRow.style.display = 'flex';
+    if (legend) legend.style.display = 'flex';
+
+    if (!_seaResults.length) {
+        body.innerHTML = '<div class="sea-empty">No data yet. Click <strong>▶ Scan All</strong>.</div>';
+        if (countsEl) countsEl.textContent = '';
+        return;
+    }
+
+    var filtered = _seaResults.filter(function(r) {
+        if (r.nYears < _seaMinYears) return false;
+        if (_seaFilter === 'positive' && r.avg <= 0) return false;
+        if (_seaFilter === 'negative' && r.avg >= 0) return false;
+        return true;
+    });
+
+    filtered.sort(function(a, b) {
+        if (_seaSort === 'winrate') return b.winRate - a.winRate || b.avg - a.avg;
+        if (_seaSort === 'symbol') return a.symbol.localeCompare(b.symbol);
+        return b.avg - a.avg || b.winRate - a.winRate; // default avg
+    });
+
+    if (countsEl) {
+        countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' stocks · ' + MONTH_NAMES[_seaMonthIndex];
+    }
+
+    if (!filtered.length) {
+        body.innerHTML = '<div class="sea-empty">No stocks match the current filters.</div>';
+        return;
+    }
+
+    var rows = filtered.map(function(r) {
+        var avgCls = r.avg > 0 ? 'sea-pos' : (r.avg < 0 ? 'sea-neg' : 'sea-muted');
+        var lastCls = r.last.ret > 0 ? 'sea-pos' : (r.last.ret < 0 ? 'sea-neg' : 'sea-muted');
+        var wrCls = r.winRate >= 60 ? 'sea-pos' : (r.winRate >= 45 ? '' : 'sea-neg');
+        return '<tr onclick="seaOpenDetail(\'' + r.symbol.replace(/'/g, "\\'") + '\')">'
+            + '<td class="sym">' + r.symbol + '</td>'
+            + '<td class="num ' + avgCls + '">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
+            + '<td class="num ' + wrCls + '">' + r.winRate.toFixed(0) + '%</td>'
+            + '<td class="num sea-muted">' + r.nYears + '</td>'
+            + '<td class="num ' + lastCls + '">' + (r.last.ret >= 0 ? '+' : '') + r.last.ret.toFixed(2) + '% <span class="sea-muted">(' + r.last.year + ')</span></td>'
+            + '<td class="num sea-pos">' + (r.best.ret >= 0 ? '+' : '') + r.best.ret.toFixed(1) + '% <span class="sea-muted">(' + r.best.year + ')</span></td>'
+            + '<td class="num sea-neg">' + (r.worst.ret >= 0 ? '+' : '') + r.worst.ret.toFixed(1) + '% <span class="sea-muted">(' + r.worst.year + ')</span></td>'
+            + '</tr>';
+    }).join('');
+
+    body.innerHTML = '<table class="sea-list-table"><thead><tr>'
+        + '<th>Symbol</th>'
+        + '<th class="num">Avg ' + MONTH_NAMES[_seaMonthIndex] + '</th>'
+        + '<th class="num">Win Rate</th>'
+        + '<th class="num">Years</th>'
+        + '<th class="num">Last</th>'
+        + '<th class="num">Best</th>'
+        + '<th class="num">Worst</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function seaOpenDetail(symbol) {
+    _seaView = 'detail';
+    _seaDetailSymbol = symbol;
+    renderSeasonalDetail(symbol);
+}
+
+function seaBackToList() {
+    _seaView = 'list';
+    _seaDetailSymbol = null;
+    renderSeasonalList();
+}
+
+function renderSeasonalDetail(symbol) {
+    var body = document.getElementById('sea-body');
+    var filterRow = document.getElementById('sea-filter-row');
+    var legend = document.getElementById('sea-legend');
+    var countsEl = document.getElementById('sea-counts');
+    if (filterRow) filterRow.style.display = 'none';
+    if (legend) legend.style.display = 'none';
+
+    var r = null;
+    for (var i = 0; i < _seaResults.length; i++) {
+        if (_seaResults[i].symbol === symbol) { r = _seaResults[i]; break; }
+    }
+    if (!r) {
+        // recompute on the fly
+        r = seaComputeReturns(symbol);
+    }
+    if (!r) {
+        body.innerHTML = '<div class="sea-empty">No data for ' + symbol + '</div>';
+        return;
+    }
+
+    if (countsEl) countsEl.textContent = symbol;
+
+    var years = Object.keys(r.returns).map(Number).sort(function(a,b){ return b - a; }); // newest first
+
+    // Summary stats per month
+    var monthStats = [];
+    for (var m = 0; m < 12; m++) {
+        var vals = [];
+        years.forEach(function(y) {
+            if (r.returns[y] && r.returns[y][m] != null && Number.isFinite(r.returns[y][m])) {
+                vals.push(r.returns[y][m]);
+            }
+        });
+        var avg = vals.length ? vals.reduce(function(a,v){return a+v;},0) / vals.length : null;
+        var wr = vals.length ? (vals.filter(function(v){return v>0;}).length / vals.length * 100) : null;
+        monthStats.push({ avg: avg, winRate: wr, n: vals.length });
+    }
+
+    var header = '<div class="sea-detail-header">'
+        + '<button class="sea-back-btn" onclick="seaBackToList()">← Back to list</button>'
+        + '<strong style="color:#e2e8f0;font-size:14px;">' + symbol + '</strong>'
+        + '<span style="color:#64748b;font-size:11px;">Year × Month returns · click any month header to focus</span>'
+        + '<button class="sea-back-btn" style="margin-left:auto;" onclick="seaOpenInChart(\'' + symbol.replace(/'/g,"\\'") + '\')">Open in Chart →</button>'
+        + '</div>';
+
+    var thead = '<tr><th class="year-col">Year</th>';
+    for (var m = 0; m < 12; m++) {
+        var focusStyle = m === _seaMonthIndex ? ' style="color:#38bdf8;border-bottom:2px solid #38bdf8;"' : '';
+        thead += '<th' + focusStyle + '>' + MONTH_NAMES[m] + '</th>';
+    }
+    thead += '</tr>';
+
+    var tbody = '';
+    years.forEach(function(y) {
+        tbody += '<tr><td class="year-col">' + y + '</td>';
+        for (var m = 0; m < 12; m++) {
+            var val = r.returns[y] ? r.returns[y][m] : null;
+            if (val == null || !Number.isFinite(val)) {
+                tbody += '<td class="sea-heat-na">—</td>';
+            } else {
+                var cls = val > 0.05 ? 'sea-heat-pos' : (val < -0.05 ? 'sea-heat-neg' : 'sea-heat-zero');
+                var sign = val > 0 ? '+' : '';
+                tbody += '<td class="' + cls + '">' + sign + val.toFixed(2) + '%</td>';
+            }
+        }
+        tbody += '</tr>';
+    });
+
+    // Average row
+    tbody += '<tr class="summary-row"><td class="year-col">Avg</td>';
+    monthStats.forEach(function(s) {
+        if (s.avg == null) {
+            tbody += '<td class="sea-heat-na">—</td>';
+        } else {
+            var cls = s.avg > 0.05 ? 'sea-heat-pos' : (s.avg < -0.05 ? 'sea-heat-neg' : 'sea-heat-zero');
+            var sign = s.avg > 0 ? '+' : '';
+            tbody += '<td class="' + cls + '">' + sign + s.avg.toFixed(2) + '%</td>';
+        }
+    });
+    tbody += '</tr>';
+
+    // Win-rate row
+    tbody += '<tr class="summary-row"><td class="year-col">Win%</td>';
+    monthStats.forEach(function(s) {
+        if (s.winRate == null) {
+            tbody += '<td class="sea-heat-na">—</td>';
+        } else {
+            var cls = s.winRate >= 60 ? 'sea-heat-pos' : (s.winRate < 40 ? 'sea-heat-neg' : 'sea-heat-zero');
+            tbody += '<td class="' + cls + '">' + s.winRate.toFixed(0) + '%</td>';
+        }
+    });
+    tbody += '</tr>';
+
+    // N years row
+    tbody += '<tr class="summary-row"><td class="year-col">N</td>';
+    monthStats.forEach(function(s) {
+        tbody += '<td class="sea-muted">' + (s.n || '—') + '</td>';
+    });
+    tbody += '</tr>';
+
+    body.innerHTML = header
+        + '<div class="sea-heat-wrap"><table class="sea-heat-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>'
+        + '<div class="sea-legend" style="display:flex;">'
+        + '<span><span class="sea-swatch" style="background:rgba(74,222,128,0.35);"></span> Positive</span>'
+        + '<span><span class="sea-swatch" style="background:rgba(248,113,113,0.3);"></span> Negative</span>'
+        + '<span>Avg = mean monthly return across years · Win% = % of years positive · N = observations</span>'
+        + '</div>';
+}
+
+function seaOpenInChart(symbol) {
+    closeSeasonalScreener();
+    if (!allInstruments[symbol]) return;
+    currentInstrKey = symbol;
+    if (typeof getCategory === 'function') currentInstrCat = getCategory(symbol);
+    if (typeof updateTriggerLabel === 'function') updateTriggerLabel();
+    if (typeof switchInstrumentData === 'function') switchInstrumentData();
 }
 
 
