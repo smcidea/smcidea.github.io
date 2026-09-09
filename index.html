@@ -17041,8 +17041,14 @@ syncRiskRs();
         .sea-list-table tr:hover { background:rgba(56,189,248,0.07); }
         .sea-list-table td { padding:7px 10px;border-bottom:1px solid #1a2438;color:#cbd5e1; }
         .sea-list-table .sym { font-weight:700;color:#e2e8f0; }
-        .sea-pos { color:#4ade80;font-weight:600; }
-        .sea-neg { color:#f87171;font-weight:600; }
+        .sea-pos { color:#4ade80;font-weight:700; }
+        .sea-neg { color:#f87171;font-weight:700; }
+        .sea-list-table tr.sea-row-pos td { background:rgba(74,222,128,0.06); }
+        .sea-list-table tr.sea-row-neg td { background:rgba(248,113,113,0.06); }
+        .sea-list-table tr.sea-row-pos:hover td { background:rgba(74,222,128,0.12); }
+        .sea-list-table tr.sea-row-neg:hover td { background:rgba(248,113,113,0.12); }
+        .sea-list-table td.sea-pos { color:#4ade80; }
+        .sea-list-table td.sea-neg { color:#f87171; }
         .sea-muted { color:#64748b; }
         .sea-detail-header {
             display:flex;align-items:center;gap:12px;padding:10px 16px;
@@ -17246,8 +17252,8 @@ syncRiskRs();
             </div>
             <div class="sea-filter-row" id="sea-filter-row">
                 <span class="sea-filter-label">Show</span>
-                <button class="sea-cat-btn active" data-filter="positive" onclick="seaSetFilter(this)">Positive only</button>
-                <button class="sea-cat-btn" data-filter="all" onclick="seaSetFilter(this)">All</button>
+                <button class="sea-cat-btn" data-filter="positive" onclick="seaSetFilter(this)">Positive only</button>
+                <button class="sea-cat-btn active" data-filter="all" onclick="seaSetFilter(this)">All</button>
                 <button class="sea-cat-btn" data-filter="negative" onclick="seaSetFilter(this)">Negative only</button>
                 <span class="sea-filter-label" style="margin-left:10px;">Universe</span>
                 <button class="sea-cat-btn active" data-universe="all" onclick="seaSetUniverse(this)">All + Index</button>
@@ -31350,7 +31356,7 @@ function bslOpenInstrument(name) {
 //  SEASONAL SCREENER
 // ═══════════════════════════════════════════════════════════════
 var _seaResults = [];
-var _seaFilter = 'positive';
+var _seaFilter = 'all';
 var _seaMinYears = 1;
 var _seaSort = 'avg';
 var _seaSortDir = 'desc';  // 'asc' | 'desc'
@@ -31769,7 +31775,8 @@ function renderSeasonalList() {
         var lastCls = r.last.ret > 0 ? 'sea-pos' : (r.last.ret < 0 ? 'sea-neg' : 'sea-muted');
         var wrCls = r.winRate >= 60 ? 'sea-pos' : (r.winRate >= 45 ? '' : 'sea-neg');
         var isIdx = seaIsIndexName(r.symbol);
-        rows += '<tr data-sea-symbol="' + r.symbol + '">'
+        var rowCls = r.avg > 0 ? 'sea-row-pos' : (r.avg < 0 ? 'sea-row-neg' : '');
+        rows += '<tr data-sea-symbol="' + r.symbol + '" class="' + rowCls + '">'
             + '<td class="sym">' + r.symbol + (isIdx ? ' <span style="font-size:9px;color:#38bdf8;">INDEX</span>' : '') + '</td>'
             + '<td class="num ' + avgCls + '">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
             + '<td class="num ' + wrCls + '">' + r.winRate.toFixed(0) + '%</td>'
