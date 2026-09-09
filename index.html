@@ -31469,9 +31469,8 @@ function seaApplyCustom() {
     var hint = document.getElementById('sea-custom-hint');
     var filterRow = document.getElementById('sea-filter-row');
     if (filterRow) filterRow.style.display = 'flex';
-    var raw = (inp && inp.value) ? inp.value.trim() : '';
-    if (!raw) {
-        // Empty input → return to full universe
+    var raw = (inp && inp.value) ? String(inp.value) : '';
+    if (!raw.trim()) {
         _seaCustomList = [];
         _seaUniverse = 'all';
         document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){
@@ -31479,40 +31478,69 @@ function seaApplyCustom() {
         });
         var customRow = document.getElementById('sea-custom-row');
         if (customRow) customRow.style.display = 'none';
-        if (hint) { hint.textContent = ''; }
+        if (hint) hint.textContent = '';
         runSeasonalScreener();
         return;
     }
-    var parts = raw.split(/[\s,;]+/).map(function(s){ return s.trim().toUpperCase(); }).filter(Boolean);
-    var seen = {};
-    _seaCustomList = [];
-    for (var i = 0; i < parts.length; i++) {
-        if (!seen[parts[i]]) { seen[parts[i]] = 1; _seaCustomList.push(parts[i]); }
-    }
-    _seaCustomList = _seaCustomList.map(function(s) {
-        if (s === 'NEPSE' || s === 'NEPSEINDEX' || s === 'NEPSE_INDEX') return 'Index';
-        return s;
-    });
-    var found = 0, missing = [];
-    var allNames = Object.keys(allInstruments || {});
-    for (var i = 0; i < _seaCustomList.length; i++) {
-        var sym = _seaCustomList[i];
-        var ok = false;
-        if (allInstruments[sym]) ok = true;
-        else {
-            for (var k = 0; k < allNames.length; k++) {
-                if (String(allNames[k]).toUpperCase() === sym) {
-                    _seaCustomList[i] = allNames[k];
-                    ok = true;
-                    break;
-                }
-            }
+    // Split without regex: newlines, commas, semicolons, tabs, spaces
+    var normalized = '';
+    for (var i = 0; i < raw.length; i++) {
+        var ch = raw.charAt(i);
+        var code = raw.charCodeAt(i);
+        if (ch === ',' || ch === ';' || code === 9 || code === 10 || code === 13 || ch === ' ') {
+            normalized += '|';
+        } else {
+            normalized += ch;
         }
-        if (ok) found++; else missing.push(sym);
+    }
+    var parts = normalized.split('|');
+    var cleaned = [];
+    var seen = {};
+    for (var i = 0; i < parts.length; i++) {
+        var s = '';
+        var p = parts[i];
+        for (var j = 0; j < p.length; j++) {
+            var c2 = p.charAt(j).toUpperCase();
+            if ((c2 >= 'A' && c2 <= 'Z') || (c2 >= '0' && c2 <= '9')) s += c2;
+        }
+        if (!s || seen[s]) continue;
+        seen[s] = 1;
+        if (s === 'NEPSE' || s === 'NEPSEINDEX') s = 'INDEX';
+        cleaned.push(s);
+    }
+    var allNames = Object.keys(allInstruments || {});
+    var upperMap = {};
+    for (var k = 0; k < allNames.length; k++) {
+        var keyU = '';
+        var nm = String(allNames[k]);
+        for (var j = 0; j < nm.length; j++) {
+            var c3 = nm.charAt(j).toUpperCase();
+            if ((c3 >= 'A' && c3 <= 'Z') || (c3 >= '0' && c3 <= '9')) keyU += c3;
+        }
+        upperMap[keyU] = allNames[k];
+        upperMap[nm.toUpperCase()] = allNames[k];
+    }
+    // Prefer real key "Index" for INDEX
+    if (allInstruments['Index']) upperMap['INDEX'] = 'Index';
+    _seaCustomList = [];
+    var missing = [];
+    for (var i = 0; i < cleaned.length; i++) {
+        var want = cleaned[i];
+        if (upperMap[want]) _seaCustomList.push(upperMap[want]);
+        else missing.push(want);
     }
     if (hint) {
-        hint.textContent = found + ' found' + (missing.length ? (' · missing: ' + missing.slice(0, 6).join(', ')) : '');
-        hint.style.color = missing.length ? '#f87171' : '#4ade80';
+        var msg = _seaCustomList.length + ' found';
+        if (missing.length) msg += ' · missing: ' + missing.slice(0, 12).join(', ') + (missing.length > 12 ? '…' : '');
+        if (!allNames.length) msg += ' (no instruments loaded yet)';
+        hint.textContent = msg;
+        hint.style.color = (_seaCustomList.length ? '#4ade80' : '#f87171');
+    }
+    console.log('[Seasonal] custom parse', { cleaned: cleaned, matched: _seaCustomList, missing: missing, instrumentCount: allNames.length });
+    if (!_seaCustomList.length) {
+        var body = document.getElementById('sea-body');
+        if (body) body.innerHTML = '<div class="sea-empty">None of the typed symbols were found in loaded data' + (allNames.length ? (' (' + allNames.length + ' instruments available).') : ' (data not loaded).') + '</div>';
+        return;
     }
     _seaUniverse = 'custom';
     document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-universe]').forEach(function(b){
