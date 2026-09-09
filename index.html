@@ -17262,13 +17262,12 @@ syncRiskRs();
                 <button class="sea-cat-btn" data-sort="winrate" onclick="seaSetSort(this)">Win Rate</button>
                 <button class="sea-cat-btn" data-sort="symbol" onclick="seaSetSort(this)">Symbol</button>
             </div>
-            <div class="sea-filter-row" id="sea-custom-row" style="display:none;">
-                <span class="sea-filter-label">Custom</span>
-                <input id="sea-custom-input" type="text" placeholder="e.g. NABIL, ADBL, Index, Banking SubIndex" 
-                    style="flex:1;min-width:180px;max-width:520px;padding:4px 10px;border-radius:6px;border:1px solid #2a3a4a;background:#0f172a;color:#e2e8f0;font-size:12px;"
-                    onkeydown="if(event.key==='Enter'){seaApplyCustom();}" />
-                <button class="sea-cat-btn" onclick="seaApplyCustom()" style="border-color:#38bdf8;color:#7dd3fc;">Apply</button>
-                <span id="sea-custom-hint" style="font-size:10px;color:#64748b;"></span>
+            <div class="sea-filter-row" id="sea-custom-row" style="display:none;align-items:flex-start;">
+                <span class="sea-filter-label" style="margin-top:6px;">Custom</span>
+                <textarea id="sea-custom-input" rows="4" placeholder="One symbol per line:&#10;NABIL&#10;NBL&#10;BARUN"
+                    style="flex:1;min-width:180px;max-width:520px;padding:6px 10px;border-radius:6px;border:1px solid #2a3a4a;background:#0f172a;color:#e2e8f0;font-size:12px;line-height:1.4;resize:vertical;font-family:inherit;"></textarea>
+                <button class="sea-cat-btn" onclick="seaApplyCustom()" style="border-color:#38bdf8;color:#7dd3fc;margin-top:4px;">Apply</button>
+                <span id="sea-custom-hint" style="font-size:10px;color:#64748b;margin-top:6px;"></span>
             </div>
             <div class="sea-body" id="sea-body">
                 <div class="sea-empty">Click <strong>▶ Scan All</strong> to compute historical monthly returns for all stocks.</div>
