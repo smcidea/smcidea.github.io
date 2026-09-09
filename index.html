@@ -31356,13 +31356,11 @@ function openSeasonalScreener() {
     var tag = document.getElementById('sea-month-tag');
     if (tag) tag.textContent = 'Focus: ' + SEA_MONTH_NAMES[_seaMonthIndex];
     var nInst = (typeof allInstruments === 'object' && allInstruments) ? Object.keys(allInstruments).length : 0;
-    if (nInst > 0 && _seaResults.length === 0) {
-        runSeasonalScreener();
-    } else if (_seaResults.length) {
-        renderSeasonalScreener();
-    } else {
+    if (nInst > 0 && _seaResults.length === 0) runSeasonalScreener();
+    else if (_seaResults.length) renderSeasonalScreener();
+    else {
         var body = document.getElementById('sea-body');
-        if (body) body.innerHTML = '<div class="sea-empty">No instrument data loaded yet (' + nInst + ' symbols). Wait for the chart to finish loading, then click <strong>▶ Scan All</strong>.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No instrument data loaded yet (' + nInst + ' symbols). Wait for chart load, then click Scan All.</div>';
     }
 }
 function closeSeasonalScreener() {
@@ -31392,48 +31390,30 @@ function seaSetSort(btn) {
     renderSeasonalScreener();
 }
 
-/** Normalize any time value to {y, m, d} numbers (m is 1-12). */
-function seaParseTime(t) {
-    if (t == null) return null;
-    if (typeof t === 'object' && t.year != null) {
-        return { y: Number(t.year), m: Number(t.month), d: Number(t.day) || 1 };
-    }
-    if (typeof t === 'number' && t > 1e9) {
-        var d = new Date(t * (t < 1e12 ? 1000 : 1));
-        if (!isNaN(d.getTime())) return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
-        return null;
-    }
-    var s = String(t);
-    if (/^\d{4}-\d{2}/.test(s)) {
-        return { y: parseInt(s.slice(0,4), 10), m: parseInt(s.slice(5,7), 10), d: parseInt(s.slice(8,10), 10) || 1 };
-    }
-    if (/^\d{10,13}$/.test(s)) {
-        var n = Number(s);
-        var d2 = new Date(n * (n < 1e12 ? 1000 : 1));
-        if (!isNaN(d2.getTime())) return { y: d2.getUTCFullYear(), m: d2.getUTCMonth() + 1, d: d2.getUTCDate() };
-    }
-    return null;
-}
-
-/** Last close per calendar year-month. Returns map key "YYYY-MM" → close. */
+/** Month-end closes using the same monthKey() helper as BSL/monthly stats. */
 function seaMonthEndCloses(bars) {
     var map = {};
     if (!Array.isArray(bars)) return map;
     for (var i = 0; i < bars.length; i++) {
         var b = bars[i];
-        if (!b) continue;
-        var pt = seaParseTime(b.time != null ? b.time : b.date);
+        if (!b || b.time == null) continue;
+        var t = b.time;
+        // monthKey expects a string date; coerce if needed
+        var tStr = (typeof t === 'string') ? t : (typeof t === 'object' && t.year != null
+            ? (t.year + '-' + String(t.month).padStart(2,'0') + '-' + String(t.day || 1).padStart(2,'0'))
+            : String(t));
+        if (tStr.length < 7) continue;
+        var mk = (typeof monthKey === 'function') ? monthKey(tStr) : tStr.slice(0, 7);
         var close = Number(b.close);
-        if (!pt || !Number.isFinite(close) || close <= 0) continue;
-        var key = pt.y + '-' + (pt.m < 10 ? '0' : '') + pt.m;
-        map[key] = close;
+        if (!Number.isFinite(close) || close <= 0) continue;
+        map[mk] = close;
     }
     return map;
 }
 
 function seaComputeReturns(symbol) {
     var bars = allInstruments[symbol];
-    if (!bars || !bars.length) return null;
+    if (!bars || bars.length < 2) return null;
     var monthCloses = seaMonthEndCloses(bars);
     var keys = Object.keys(monthCloses).sort();
     if (keys.length < 2) return null;
@@ -31442,12 +31422,11 @@ function seaComputeReturns(symbol) {
     for (var i = 1; i < keys.length; i++) {
         var prev = monthCloses[keys[i - 1]];
         var cur = monthCloses[keys[i]];
-        if (prev > 0 && cur > 0) {
-            returnsByYM[keys[i]] = ((cur - prev) / prev) * 100;
-        }
+        if (prev > 0 && cur > 0) returnsByYM[keys[i]] = ((cur - prev) / prev) * 100;
     }
 
-    var focusMM = (_seaMonthIndex + 1) < 10 ? ('0' + (_seaMonthIndex + 1)) : String(_seaMonthIndex + 1);
+    var focusMM = String(_seaMonthIndex + 1);
+    if (focusMM.length < 2) focusMM = '0' + focusMM;
     var focusRets = [];
     var returns = {};
     var ymKeys = Object.keys(returnsByYM);
@@ -31457,18 +31436,17 @@ function seaComputeReturns(symbol) {
         var m = parseInt(ym.slice(5, 7), 10); // 1-12
         if (!returns[y]) returns[y] = {};
         returns[y][m - 1] = returnsByYM[ym];
-        if (ym.slice(5, 7) === focusMM) {
-            focusRets.push({ year: y, ret: returnsByYM[ym] });
-        }
+        if (ym.slice(5, 7) === focusMM) focusRets.push({ year: y, ret: returnsByYM[ym] });
     }
     focusRets.sort(function(a, b) { return a.year - b.year; });
     if (!focusRets.length) return null;
 
-    var sum = 0;
-    for (var i = 0; i < focusRets.length; i++) sum += focusRets[i].ret;
+    var sum = 0, wins = 0;
+    for (var i = 0; i < focusRets.length; i++) {
+        sum += focusRets[i].ret;
+        if (focusRets[i].ret > 0) wins++;
+    }
     var avg = sum / focusRets.length;
-    var wins = 0;
-    for (var i = 0; i < focusRets.length; i++) if (focusRets[i].ret > 0) wins++;
     var winRate = (wins / focusRets.length) * 100;
     var best = focusRets[0], worst = focusRets[0];
     for (var i = 1; i < focusRets.length; i++) {
@@ -31476,15 +31454,9 @@ function seaComputeReturns(symbol) {
         if (focusRets[i].ret < worst.ret) worst = focusRets[i];
     }
     return {
-        symbol: symbol,
-        returns: returns,
-        focusRets: focusRets,
-        avg: avg,
-        winRate: winRate,
-        nYears: focusRets.length,
-        best: best,
-        worst: worst,
-        last: focusRets[focusRets.length - 1]
+        symbol: symbol, returns: returns, focusRets: focusRets,
+        avg: avg, winRate: winRate, nYears: focusRets.length,
+        best: best, worst: worst, last: focusRets[focusRets.length - 1]
     };
 }
 
@@ -31497,31 +31469,32 @@ function runSeasonalScreener() {
         var results = [];
         var names = Object.keys(allInstruments || {});
         var checked = names.length;
+        var anyMonths = 0;
         for (var i = 0; i < names.length; i++) {
             try {
+                var mc = seaMonthEndCloses(allInstruments[names[i]]);
+                if (Object.keys(mc).length) anyMonths++;
                 var r = seaComputeReturns(names[i]);
                 if (r) results.push(r);
-            } catch (e) {
-                console.warn('[Seasonal] skip', names[i], e);
-            }
+            } catch (e) { console.warn('[Seasonal] skip', names[i], e); }
         }
         _seaResults = results;
         _seaView = 'list';
         _seaDetailSymbol = null;
         if (btn) { btn.disabled = false; btn.textContent = '▶ Scan All'; }
-        console.log('[Seasonal] checked', checked, 'found', results.length, 'focusMonth=', _seaMonthIndex, SEA_MONTH_NAMES[_seaMonthIndex]);
+        console.log('[Seasonal] checked', checked, 'withMonths', anyMonths, 'withFocus', results.length, 'month', SEA_MONTH_NAMES[_seaMonthIndex]);
         if (!results.length) {
-            var sampleName = names[0] || '?';
-            var sampleBars = allInstruments[sampleName] || [];
-            var sampleTimes = sampleBars.slice(0, 2).concat(sampleBars.slice(-2)).map(function(b){
-                return {time: b && b.time, type: b ? typeof b.time : null, close: b && b.close};
+            var sn = names.indexOf('ADBL') >= 0 ? 'ADBL' : names[0];
+            var sb = allInstruments[sn] || [];
+            var b0 = sb[0], b1 = sb[Math.min(1, sb.length-1)], bN = sb[sb.length-1];
+            console.log('[Seasonal] diag', sn, {
+                n: sb.length,
+                b0: b0,
+                b1: b1,
+                bN: bN,
+                monthKeys: Object.keys(seaMonthEndCloses(sb)).slice(0, 8)
             });
-            var mc = seaMonthEndCloses(sampleBars);
-            var mkeys = Object.keys(mc).sort();
-            console.log('[Seasonal] diag', sampleName, 'nBars=', sampleBars.length, 'times=', sampleTimes, 'nMonths=', mkeys.length, 'months=', mkeys.slice(0,3).concat(mkeys.slice(-3)));
-            if (body) {
-                body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols — 0 had history for <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>.<br>Sample <code>' + sampleName + '</code>: ' + sampleBars.length + ' bars, ' + mkeys.length + ' months. Open console (F12) for [Seasonal] diag.</div>';
-            }
+            if (body) body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols (' + anyMonths + ' had monthly bars) — 0 matched <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>. See console [Seasonal] diag.</div>';
             return;
         }
         renderSeasonalScreener();
@@ -31529,10 +31502,7 @@ function runSeasonalScreener() {
 }
 
 function renderSeasonalScreener() {
-    if (_seaView === 'detail' && _seaDetailSymbol) {
-        renderSeasonalDetail(_seaDetailSymbol);
-        return;
-    }
+    if (_seaView === 'detail' && _seaDetailSymbol) { renderSeasonalDetail(_seaDetailSymbol); return; }
     renderSeasonalList();
 }
 
@@ -31561,9 +31531,9 @@ function renderSeasonalList() {
         if (_seaSort === 'symbol') return a.symbol < b.symbol ? -1 : (a.symbol > b.symbol ? 1 : 0);
         return b.avg - a.avg || b.winRate - a.winRate;
     });
-    if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' stocks · ' + SEA_MONTH_NAMES[_seaMonthIndex];
+    if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' · ' + SEA_MONTH_NAMES[_seaMonthIndex];
     if (!filtered.length) {
-        if (body) body.innerHTML = '<div class="sea-empty">No stocks match the current filters (' + _seaResults.length + ' have history). Try <strong>All</strong> or lower Min years.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No stocks match filters (' + _seaResults.length + ' have history). Try All or lower Min years.</div>';
         return;
     }
     var rows = '';
@@ -31583,21 +31553,15 @@ function renderSeasonalList() {
             + '</tr>';
     }
     body.innerHTML = '<table class="sea-list-table"><thead><tr>'
-        + '<th>Symbol</th>'
-        + '<th class="num">Avg ' + SEA_MONTH_NAMES[_seaMonthIndex] + '</th>'
-        + '<th class="num">Win Rate</th>'
-        + '<th class="num">Years</th>'
-        + '<th class="num">Last</th>'
-        + '<th class="num">Best</th>'
-        + '<th class="num">Worst</th>'
+        + '<th>Symbol</th><th class="num">Avg ' + SEA_MONTH_NAMES[_seaMonthIndex] + '</th>'
+        + '<th class="num">Win Rate</th><th class="num">Years</th><th class="num">Last</th>'
+        + '<th class="num">Best</th><th class="num">Worst</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table>';
     var tbl = body.querySelector('table.sea-list-table');
-    if (tbl) {
-        tbl.addEventListener('click', function(ev) {
-            var tr = ev.target.closest('tr[data-sea-symbol]');
-            if (tr) seaOpenDetail(tr.getAttribute('data-sea-symbol'));
-        });
-    }
+    if (tbl) tbl.addEventListener('click', function(ev) {
+        var tr = ev.target.closest('tr[data-sea-symbol]');
+        if (tr) seaOpenDetail(tr.getAttribute('data-sea-symbol'));
+    });
 }
 
 function seaOpenDetail(symbol) {
@@ -31648,8 +31612,8 @@ function renderSeasonalDetail(symbol) {
         + '</div>';
     var thead = '<tr><th class="year-col">Year</th>';
     for (var m = 0; m < 12; m++) {
-        var focusStyle = m === _seaMonthIndex ? ' style="color:#38bdf8;border-bottom:2px solid #38bdf8;"' : '';
-        thead += '<th' + focusStyle + '>' + SEA_MONTH_NAMES[m] + '</th>';
+        var fs = m === _seaMonthIndex ? ' style="color:#38bdf8;border-bottom:2px solid #38bdf8;"' : '';
+        thead += '<th' + fs + '>' + SEA_MONTH_NAMES[m] + '</th>';
     }
     thead += '</tr>';
     var tbody = '';
@@ -31658,9 +31622,8 @@ function renderSeasonalDetail(symbol) {
         tbody += '<tr><td class="year-col">' + y + '</td>';
         for (var m = 0; m < 12; m++) {
             var val = r.returns[y] ? r.returns[y][m] : null;
-            if (val == null || !Number.isFinite(val)) {
-                tbody += '<td class="sea-heat-na">—</td>';
-            } else {
+            if (val == null || !Number.isFinite(val)) tbody += '<td class="sea-heat-na">—</td>';
+            else {
                 var cls = val > 0.05 ? 'sea-heat-pos' : (val < -0.05 ? 'sea-heat-neg' : 'sea-heat-zero');
                 tbody += '<td class="' + cls + '">' + (val > 0 ? '+' : '') + val.toFixed(2) + '%</td>';
             }
@@ -31676,8 +31639,7 @@ function renderSeasonalDetail(symbol) {
             tbody += '<td class="' + cls + '">' + (s.avg > 0 ? '+' : '') + s.avg.toFixed(2) + '%</td>';
         }
     }
-    tbody += '</tr>';
-    tbody += '<tr class="summary-row"><td class="year-col">Win%</td>';
+    tbody += '</tr><tr class="summary-row"><td class="year-col">Win%</td>';
     for (var m = 0; m < 12; m++) {
         var s = monthStats[m];
         if (s.winRate == null) tbody += '<td class="sea-heat-na">—</td>';
@@ -31686,19 +31648,15 @@ function renderSeasonalDetail(symbol) {
             tbody += '<td class="' + cls + '">' + s.winRate.toFixed(0) + '%</td>';
         }
     }
-    tbody += '</tr>';
-    tbody += '<tr class="summary-row"><td class="year-col">N</td>';
-    for (var m = 0; m < 12; m++) {
-        tbody += '<td class="sea-muted">' + (monthStats[m].n || '—') + '</td>';
-    }
+    tbody += '</tr><tr class="summary-row"><td class="year-col">N</td>';
+    for (var m = 0; m < 12; m++) tbody += '<td class="sea-muted">' + (monthStats[m].n || '—') + '</td>';
     tbody += '</tr>';
     body.innerHTML = header
         + '<div class="sea-heat-wrap"><table class="sea-heat-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>'
         + '<div class="sea-legend" style="display:flex;">'
         + '<span><span class="sea-swatch" style="background:rgba(74,222,128,0.35);"></span> Positive</span>'
         + '<span><span class="sea-swatch" style="background:rgba(248,113,113,0.3);"></span> Negative</span>'
-        + '<span>Avg = mean return · Win% = % years positive · N = observations</span>'
-        + '</div>';
+        + '<span>Avg · Win% · N observations</span></div>';
     var backBtn = document.getElementById('sea-back-btn');
     if (backBtn) backBtn.addEventListener('click', seaBackToList);
     var openBtn = document.getElementById('sea-open-chart-btn');
