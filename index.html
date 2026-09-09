@@ -17258,9 +17258,9 @@ syncRiskRs();
                 <button class="sea-cat-btn" data-minyears="5" onclick="seaSetMinYears(this)">≥5</button>
                 <button class="sea-cat-btn" data-minyears="1" onclick="seaSetMinYears(this)">≥1</button>
                 <span class="sea-filter-label" style="margin-left:10px;">Sort</span>
-                <button class="sea-cat-btn active" data-sort="avg" onclick="seaSetSort(this)">Avg Return</button>
-                <button class="sea-cat-btn" data-sort="winrate" onclick="seaSetSort(this)">Win Rate</button>
-                <button class="sea-cat-btn" data-sort="symbol" onclick="seaSetSort(this)">Symbol</button>
+                <button class="sea-cat-btn active" data-sort="avg" data-label="Avg Return" onclick="seaSetSort(this)">Avg Return v</button>
+                <button class="sea-cat-btn" data-sort="winrate" data-label="Win Rate" onclick="seaSetSort(this)">Win Rate</button>
+                <button class="sea-cat-btn" data-sort="symbol" data-label="Symbol" onclick="seaSetSort(this)">Symbol</button>
             </div>
             <div class="sea-filter-row" id="sea-custom-row" style="display:none;align-items:flex-start;">
                 <span class="sea-filter-label" style="margin-top:6px;">Custom</span>
@@ -31412,30 +31412,36 @@ function seaSetSort(btn) {
         _seaSort = key;
         _seaSortDir = (key === 'symbol') ? 'asc' : 'desc';
     }
-    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){
-        b.classList.remove('active');
-        var label = b.getAttribute('data-label') || b.textContent.replace(/[\u2191\u2193↑↓]/g, '').trim();
-        b.setAttribute('data-label', label);
-        b.textContent = label;
-    });
-    btn.classList.add('active');
-    var base = btn.getAttribute('data-label') || btn.textContent.replace(/[\u2191\u2193↑↓]/g, '').trim();
-    btn.setAttribute('data-label', base);
-    btn.textContent = base + (_seaSortDir === 'desc' ? ' ↓' : ' ↑');
+    seaUpdateSortButtons();
     renderSeasonalScreener();
 }
-
+function seaUpdateSortButtons() {
+    document.querySelectorAll('#sea-filter-row .sea-cat-btn[data-sort]').forEach(function(b){
+        var label = b.getAttribute('data-label') || 'Sort';
+        var key = b.getAttribute('data-sort');
+        if (key === _seaSort) {
+            b.classList.add('active');
+            b.textContent = label + (_seaSortDir === 'desc' ? ' v' : ' ^');
+        } else {
+            b.classList.remove('active');
+            b.textContent = label;
+        }
+    });
+}
 
 function seaIsIndexName(name) {
     if (!name) return false;
     var n = String(name);
     if (typeof MAIN_INDICES !== 'undefined' && MAIN_INDICES.indexOf(n) >= 0) return true;
     if (typeof SUB_INDICES !== 'undefined' && SUB_INDICES.indexOf(n) >= 0) return true;
-    if (n === 'NEPSE' || n === 'NEPSE Index') return true;
+    if (n === 'NEPSE' || n === 'NEPSE Index' || n === 'Sub Index') return true;
     if (typeof getCategory === 'function') {
         var cat = getCategory(n);
         if (cat === 'index' || cat === 'subindex') return true;
     }
+    var lower = n.toLowerCase();
+    if (lower.indexOf('index') >= 0 && n.indexOf('-') < 0) return true;
+    if (lower.indexOf('subindex') >= 0 || lower.indexOf('sub index') >= 0) return true;
     return false;
 }
 function seaSetUniverse(btn) {
@@ -31559,12 +31565,13 @@ function seaUniverseNames() {
         if (!_seaCustomList.length) return [];
         var out = [];
         for (var i = 0; i < _seaCustomList.length; i++) {
-            var want = String(_seaCustomList[i]).toUpperCase();
+            var want = String(_seaCustomList[i]).toUpperCase().replace(/[^A-Z0-9]/g, '');
             var matched = null;
-            if (allInstruments[_seaCustomList[i]]) matched = _seaCustomList[i];
-            else {
-                for (var k = 0; k < allNames.length; k++) {
-                    if (String(allNames[k]).toUpperCase() === want) { matched = allNames[k]; break; }
+            for (var k = 0; k < allNames.length; k++) {
+                var keyU = String(allNames[k]).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (keyU === want || String(allNames[k]).toUpperCase() === String(_seaCustomList[i]).toUpperCase()) {
+                    matched = allNames[k];
+                    break;
                 }
             }
             if (matched) out.push(matched);
@@ -31572,12 +31579,29 @@ function seaUniverseNames() {
         return out;
     }
     if (_seaUniverse === 'index') {
-        return allNames.filter(seaIsIndexName);
+        var out = [];
+        var seen = {};
+        // Prefer canonical MAIN_INDICES / SUB_INDICES order when present in data
+        var canon = [];
+        if (typeof MAIN_INDICES !== 'undefined') canon = canon.concat(MAIN_INDICES);
+        if (typeof SUB_INDICES !== 'undefined') canon = canon.concat(SUB_INDICES);
+        for (var i = 0; i < canon.length; i++) {
+            if (allInstruments[canon[i]] && !seen[canon[i]]) {
+                seen[canon[i]] = 1;
+                out.push(canon[i]);
+            }
+        }
+        // Also any other instrument classified as index/subindex
+        for (var k = 0; k < allNames.length; k++) {
+            if (!seen[allNames[k]] && seaIsIndexName(allNames[k])) {
+                seen[allNames[k]] = 1;
+                out.push(allNames[k]);
+            }
+        }
+        return out;
     }
-    // all: stocks + any index/sub-index present in data
     return allNames;
 }
-
 
 function seaMonthCloses(bars) {
     var first = {};
@@ -31733,6 +31757,7 @@ function renderSeasonalList() {
         return cmp * dir;
     });
     if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' · ' + SEA_MONTH_NAMES[_seaMonthIndex];
+    if (typeof seaUpdateSortButtons === 'function') seaUpdateSortButtons();
     if (!filtered.length) {
         if (body) body.innerHTML = '<div class="sea-empty">No stocks match filters (' + _seaResults.length + ' have history). Try All or lower Min years.</div>';
         return;
