@@ -17039,7 +17039,7 @@ syncRiskRs();
         .sea-list-table th.num, .sea-list-table td.num { text-align:right; }
         .sea-list-table tr { cursor:pointer;transition:background 0.12s; }
         .sea-list-table tr:hover { background:rgba(56,189,248,0.07); }
-        .sea-list-table td { padding:7px 10px;border-bottom:1px solid #1a2438;color:#cbd5e1; }
+        .sea-list-table td { padding:7px 10px;border-bottom:1px solid #1a2438; }
         .sea-list-table .sym { font-weight:700;color:#e2e8f0; }
         .sea-pos { color:#4ade80;font-weight:700; }
         .sea-neg { color:#f87171;font-weight:700; }
@@ -31772,24 +31772,20 @@ function renderSeasonalList() {
     for (var i = 0; i < filtered.length; i++) {
         var r = filtered[i];
         var isIdx = seaIsIndexName(r.symbol);
-        var colPos = '#22c55e';
-        var colNeg = '#ef4444';
-        var colMut = '#64748b';
-        function seaCol(v) { return v > 0 ? colPos : (v < 0 ? colNeg : colMut); }
-        var avgC = seaCol(r.avg);
-        var lastC = seaCol(r.last.ret);
-        var wrC = r.winRate >= 60 ? colPos : (r.winRate < 45 ? colNeg : '#e2e8f0');
-        var bestC = seaCol(r.best.ret);
-        var worstC = seaCol(r.worst.ret);
-        var rowBg = r.avg > 0 ? 'background:rgba(34,197,94,0.08);' : (r.avg < 0 ? 'background:rgba(239,68,68,0.08);' : '');
-        rows += '<tr data-sea-symbol="' + r.symbol + '" style="' + rowBg + '">'
-            + '<td class="sym">' + r.symbol + (isIdx ? ' <span style="font-size:9px;color:#38bdf8;">INDEX</span>' : '') + '</td>'
-            + '<td class="num" style="color:' + avgC + ';font-weight:700;">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</td>'
-            + '<td class="num" style="color:' + wrC + ';font-weight:600;">' + r.winRate.toFixed(0) + '%</td>'
-            + '<td class="num" style="color:' + colMut + ';">' + r.nYears + '</td>'
-            + '<td class="num" style="color:' + lastC + ';font-weight:600;">' + (r.last.ret >= 0 ? '+' : '') + r.last.ret.toFixed(2) + '% <span style="color:' + colMut + ';">(' + r.last.year + ')</span></td>'
-            + '<td class="num" style="color:' + bestC + ';font-weight:600;">' + (r.best.ret >= 0 ? '+' : '') + r.best.ret.toFixed(1) + '% <span style="color:' + colMut + ';">(' + r.best.year + ')</span></td>'
-            + '<td class="num" style="color:' + worstC + ';font-weight:600;">' + (r.worst.ret >= 0 ? '+' : '') + r.worst.ret.toFixed(1) + '% <span style="color:' + colMut + ';">(' + r.worst.year + ')</span></td>'
+        var avgC = r.avg > 0 ? '#22c55e' : (r.avg < 0 ? '#ef4444' : '#94a3b8');
+        var lastC = r.last.ret > 0 ? '#22c55e' : (r.last.ret < 0 ? '#ef4444' : '#94a3b8');
+        var wrC = r.winRate >= 60 ? '#22c55e' : (r.winRate < 45 ? '#ef4444' : '#e2e8f0');
+        var bestC = r.best.ret > 0 ? '#22c55e' : (r.best.ret < 0 ? '#ef4444' : '#94a3b8');
+        var worstC = r.worst.ret > 0 ? '#22c55e' : (r.worst.ret < 0 ? '#ef4444' : '#94a3b8');
+        var rowBg = r.avg > 0 ? 'background:rgba(34,197,94,0.10);' : (r.avg < 0 ? 'background:rgba(239,68,68,0.10);' : '');
+        rows += '<tr data-sea-symbol="' + r.symbol + '" style="' + rowBg + '">' 
+            + '<td class="sym" style="color:#f1f5f9;font-weight:700;">' + r.symbol + (isIdx ? ' <span style="font-size:9px;color:#38bdf8;">INDEX</span>' : '') + '</td>'
+            + '<td class="num"><span style="color:' + avgC + ';font-weight:700;">' + (r.avg >= 0 ? '+' : '') + r.avg.toFixed(2) + '%</span></td>'
+            + '<td class="num"><span style="color:' + wrC + ';font-weight:600;">' + r.winRate.toFixed(0) + '%</span></td>'
+            + '<td class="num"><span style="color:#64748b;">' + r.nYears + '</span></td>'
+            + '<td class="num"><span style="color:' + lastC + ';font-weight:600;">' + (r.last.ret >= 0 ? '+' : '') + r.last.ret.toFixed(2) + '%</span> <span style="color:#64748b;">(' + r.last.year + ')</span></td>'
+            + '<td class="num"><span style="color:' + bestC + ';font-weight:600;">' + (r.best.ret >= 0 ? '+' : '') + r.best.ret.toFixed(1) + '%</span> <span style="color:#64748b;">(' + r.best.year + ')</span></td>'
+            + '<td class="num"><span style="color:' + worstC + ';font-weight:600;">' + (r.worst.ret >= 0 ? '+' : '') + r.worst.ret.toFixed(1) + '%</span> <span style="color:#64748b;">(' + r.worst.year + ')</span></td>'
             + '</tr>';
     }
     body.innerHTML = '<table class="sea-list-table"><thead><tr>'
