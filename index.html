@@ -31392,18 +31392,41 @@ function seaSetSort(btn) {
     renderSeasonalScreener();
 }
 
-/** Last close per calendar year-month from daily bars. Returns { 'YYYY-MM': close }. */
+/** Normalize any time value to {y, m, d} numbers (m is 1-12). */
+function seaParseTime(t) {
+    if (t == null) return null;
+    if (typeof t === 'object' && t.year != null) {
+        return { y: Number(t.year), m: Number(t.month), d: Number(t.day) || 1 };
+    }
+    if (typeof t === 'number' && t > 1e9) {
+        var d = new Date(t * (t < 1e12 ? 1000 : 1));
+        if (!isNaN(d.getTime())) return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+        return null;
+    }
+    var s = String(t);
+    if (/^\d{4}-\d{2}/.test(s)) {
+        return { y: parseInt(s.slice(0,4), 10), m: parseInt(s.slice(5,7), 10), d: parseInt(s.slice(8,10), 10) || 1 };
+    }
+    if (/^\d{10,13}$/.test(s)) {
+        var n = Number(s);
+        var d2 = new Date(n * (n < 1e12 ? 1000 : 1));
+        if (!isNaN(d2.getTime())) return { y: d2.getUTCFullYear(), m: d2.getUTCMonth() + 1, d: d2.getUTCDate() };
+    }
+    return null;
+}
+
+/** Last close per calendar year-month. Returns map key "YYYY-MM" → close. */
 function seaMonthEndCloses(bars) {
     var map = {};
     if (!Array.isArray(bars)) return map;
     for (var i = 0; i < bars.length; i++) {
         var b = bars[i];
         if (!b) continue;
-        var t = String(b.time || b.date || '');
+        var pt = seaParseTime(b.time != null ? b.time : b.date);
         var close = Number(b.close);
-        if (!/^\d{4}-\d{2}/.test(t) || !Number.isFinite(close) || close <= 0) continue;
-        var key = t.slice(0, 7); // YYYY-MM
-        map[key] = close; // last write wins → month-end close
+        if (!pt || !Number.isFinite(close) || close <= 0) continue;
+        var key = pt.y + '-' + (pt.m < 10 ? '0' : '') + pt.m;
+        map[key] = close;
     }
     return map;
 }
@@ -31415,8 +31438,6 @@ function seaComputeReturns(symbol) {
     var keys = Object.keys(monthCloses).sort();
     if (keys.length < 2) return null;
 
-    // Build sequential month-over-month returns
-    // returnsByYearMonth['YYYY-MM'] = pct
     var returnsByYM = {};
     for (var i = 1; i < keys.length; i++) {
         var prev = monthCloses[keys[i - 1]];
@@ -31426,19 +31447,20 @@ function seaComputeReturns(symbol) {
         }
     }
 
-    // Focus month across years (e.g. all '-09' for September)
-    var focusSuffix = '-' + String(_seaMonthIndex + 1).padStart(2, '0');
+    var focusMM = (_seaMonthIndex + 1) < 10 ? ('0' + (_seaMonthIndex + 1)) : String(_seaMonthIndex + 1);
     var focusRets = [];
-    var returns = {}; // year -> { monthIndex: pct }
-    Object.keys(returnsByYM).forEach(function(ym) {
+    var returns = {};
+    var ymKeys = Object.keys(returnsByYM);
+    for (var j = 0; j < ymKeys.length; j++) {
+        var ym = ymKeys[j];
         var y = parseInt(ym.slice(0, 4), 10);
-        var m = parseInt(ym.slice(5, 7), 10) - 1;
+        var m = parseInt(ym.slice(5, 7), 10); // 1-12
         if (!returns[y]) returns[y] = {};
-        returns[y][m] = returnsByYM[ym];
-        if (ym.indexOf(focusSuffix) === 4) {
+        returns[y][m - 1] = returnsByYM[ym];
+        if (ym.slice(5, 7) === focusMM) {
             focusRets.push({ year: y, ret: returnsByYM[ym] });
         }
-    });
+    }
     focusRets.sort(function(a, b) { return a.year - b.year; });
     if (!focusRets.length) return null;
 
@@ -31487,9 +31509,19 @@ function runSeasonalScreener() {
         _seaView = 'list';
         _seaDetailSymbol = null;
         if (btn) { btn.disabled = false; btn.textContent = '▶ Scan All'; }
-        console.log('[Seasonal] checked', checked, 'instruments, found', results.length, 'with focus-month history');
-        if (!results.length && body) {
-            body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols but none had enough monthly history for <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>. Try another month or check that chart data is fully loaded.</div>';
+        console.log('[Seasonal] checked', checked, 'found', results.length, 'focusMonth=', _seaMonthIndex, SEA_MONTH_NAMES[_seaMonthIndex]);
+        if (!results.length) {
+            var sampleName = names[0] || '?';
+            var sampleBars = allInstruments[sampleName] || [];
+            var sampleTimes = sampleBars.slice(0, 2).concat(sampleBars.slice(-2)).map(function(b){
+                return {time: b && b.time, type: b ? typeof b.time : null, close: b && b.close};
+            });
+            var mc = seaMonthEndCloses(sampleBars);
+            var mkeys = Object.keys(mc).sort();
+            console.log('[Seasonal] diag', sampleName, 'nBars=', sampleBars.length, 'times=', sampleTimes, 'nMonths=', mkeys.length, 'months=', mkeys.slice(0,3).concat(mkeys.slice(-3)));
+            if (body) {
+                body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols — 0 had history for <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>.<br>Sample <code>' + sampleName + '</code>: ' + sampleBars.length + ' bars, ' + mkeys.length + ' months. Open console (F12) for [Seasonal] diag.</div>';
+            }
             return;
         }
         renderSeasonalScreener();
