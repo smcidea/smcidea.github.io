@@ -17254,9 +17254,9 @@ syncRiskRs();
                 <button class="sea-cat-btn" data-universe="index" onclick="seaSetUniverse(this)">Index only</button>
                 <button class="sea-cat-btn" data-universe="custom" onclick="seaSetUniverse(this)">Custom list</button>
                 <span class="sea-filter-label" style="margin-left:10px;">Min years</span>
-                <button class="sea-cat-btn active" data-minyears="3" onclick="seaSetMinYears(this)">≥3</button>
+                <button class="sea-cat-btn" data-minyears="3" onclick="seaSetMinYears(this)">≥3</button>
                 <button class="sea-cat-btn" data-minyears="5" onclick="seaSetMinYears(this)">≥5</button>
-                <button class="sea-cat-btn" data-minyears="1" onclick="seaSetMinYears(this)">≥1</button>
+                <button class="sea-cat-btn active" data-minyears="1" onclick="seaSetMinYears(this)">≥1</button>
                 <span class="sea-filter-label" style="margin-left:10px;">Sort</span>
                 <button class="sea-cat-btn active" data-sort="avg" data-label="Avg Return" onclick="seaSetSort(this)">Avg Return v</button>
                 <button class="sea-cat-btn" data-sort="winrate" data-label="Win Rate" onclick="seaSetSort(this)">Win Rate</button>
@@ -31351,7 +31351,7 @@ function bslOpenInstrument(name) {
 // ═══════════════════════════════════════════════════════════════
 var _seaResults = [];
 var _seaFilter = 'positive';
-var _seaMinYears = 3;
+var _seaMinYears = 1;
 var _seaSort = 'avg';
 var _seaSortDir = 'desc';  // 'asc' | 'desc'
 var _seaUniverse = 'all';  // 'all' | 'index' | 'custom'
