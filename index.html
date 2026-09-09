@@ -31351,21 +31351,25 @@ function openSeasonalScreener() {
     var bd = document.getElementById('seasonal-scr-backdrop');
     var md = document.getElementById('seasonal-scr-modal');
     if (bd) bd.style.display = 'block';
-    if (md) { md.style.display = 'flex'; }
+    if (md) md.style.display = 'flex';
     _seaMonthIndex = (new Date()).getMonth();
     var tag = document.getElementById('sea-month-tag');
     if (tag) tag.textContent = 'Focus: ' + SEA_MONTH_NAMES[_seaMonthIndex];
-    if (typeof allInstruments === 'object' && allInstruments && Object.keys(allInstruments).length > 0 && _seaResults.length === 0) {
+    var nInst = (typeof allInstruments === 'object' && allInstruments) ? Object.keys(allInstruments).length : 0;
+    if (nInst > 0 && _seaResults.length === 0) {
         runSeasonalScreener();
     } else if (_seaResults.length) {
         renderSeasonalScreener();
+    } else {
+        var body = document.getElementById('sea-body');
+        if (body) body.innerHTML = '<div class="sea-empty">No instrument data loaded yet (' + nInst + ' symbols). Wait for the chart to finish loading, then click <strong>▶ Scan All</strong>.</div>';
     }
 }
 function closeSeasonalScreener() {
     var bd = document.getElementById('seasonal-scr-backdrop');
     var md = document.getElementById('seasonal-scr-modal');
     if (bd) bd.style.display = 'none';
-    if (md) { md.style.display = 'none'; }
+    if (md) md.style.display = 'none';
     _seaView = 'list';
     _seaDetailSymbol = null;
 }
@@ -31388,63 +31392,56 @@ function seaSetSort(btn) {
     renderSeasonalScreener();
 }
 
-function seaMonthlyCloses(bars) {
-    if (!Array.isArray(bars) || !bars.length) return {};
-    var monthly = null;
-    try {
-        if (typeof aggregateOHLC === 'function') monthly = aggregateOHLC(bars, 'M');
-    } catch (e) { monthly = null; }
-    var byYearMonth = {};
-    function ingest(t, close) {
-        var y, m;
-        t = String(t || '');
-        if (/^\d{4}-\d{2}/.test(t)) {
-            y = parseInt(t.slice(0,4), 10);
-            m = parseInt(t.slice(5,7), 10) - 1;
-        } else if (Number.isFinite(Number(t)) && Number(t) > 1e9) {
-            var d = new Date(Number(t) * (Number(t) < 1e12 ? 1000 : 1));
-            y = d.getFullYear(); m = d.getMonth();
-        } else return;
-        if (!byYearMonth[y]) byYearMonth[y] = {};
-        byYearMonth[y][m] = Number(close);
+/** Last close per calendar year-month from daily bars. Returns { 'YYYY-MM': close }. */
+function seaMonthEndCloses(bars) {
+    var map = {};
+    if (!Array.isArray(bars)) return map;
+    for (var i = 0; i < bars.length; i++) {
+        var b = bars[i];
+        if (!b) continue;
+        var t = String(b.time || b.date || '');
+        var close = Number(b.close);
+        if (!/^\d{4}-\d{2}/.test(t) || !Number.isFinite(close) || close <= 0) continue;
+        var key = t.slice(0, 7); // YYYY-MM
+        map[key] = close; // last write wins → month-end close
     }
-    if (monthly && monthly.length) {
-        monthly.forEach(function(b) { ingest(b.time, b.close); });
-    } else {
-        bars.forEach(function(b) {
-            if (!b || b.close == null) return;
-            ingest(b.time || b.date, b.close);
-        });
-    }
-    return byYearMonth;
+    return map;
 }
 
 function seaComputeReturns(symbol) {
     var bars = allInstruments[symbol];
     if (!bars || !bars.length) return null;
-    var closes = seaMonthlyCloses(bars);
-    var years = Object.keys(closes).map(Number).sort(function(a,b){ return a-b; });
-    if (!years.length) return null;
-    var returns = {};
-    var prevClose = null;
-    years.forEach(function(y) {
-        returns[y] = {};
-        for (var m = 0; m < 12; m++) {
-            var c = closes[y][m];
-            if (c == null || !Number.isFinite(c)) continue;
-            if (prevClose != null && prevClose > 0) {
-                returns[y][m] = ((c - prevClose) / prevClose) * 100;
-            }
-            prevClose = c;
+    var monthCloses = seaMonthEndCloses(bars);
+    var keys = Object.keys(monthCloses).sort();
+    if (keys.length < 2) return null;
+
+    // Build sequential month-over-month returns
+    // returnsByYearMonth['YYYY-MM'] = pct
+    var returnsByYM = {};
+    for (var i = 1; i < keys.length; i++) {
+        var prev = monthCloses[keys[i - 1]];
+        var cur = monthCloses[keys[i]];
+        if (prev > 0 && cur > 0) {
+            returnsByYM[keys[i]] = ((cur - prev) / prev) * 100;
         }
-    });
+    }
+
+    // Focus month across years (e.g. all '-09' for September)
+    var focusSuffix = '-' + String(_seaMonthIndex + 1).padStart(2, '0');
     var focusRets = [];
-    years.forEach(function(y) {
-        if (returns[y][_seaMonthIndex] != null && Number.isFinite(returns[y][_seaMonthIndex])) {
-            focusRets.push({ year: y, ret: returns[y][_seaMonthIndex] });
+    var returns = {}; // year -> { monthIndex: pct }
+    Object.keys(returnsByYM).forEach(function(ym) {
+        var y = parseInt(ym.slice(0, 4), 10);
+        var m = parseInt(ym.slice(5, 7), 10) - 1;
+        if (!returns[y]) returns[y] = {};
+        returns[y][m] = returnsByYM[ym];
+        if (ym.indexOf(focusSuffix) === 4) {
+            focusRets.push({ year: y, ret: returnsByYM[ym] });
         }
     });
+    focusRets.sort(function(a, b) { return a.year - b.year; });
     if (!focusRets.length) return null;
+
     var sum = 0;
     for (var i = 0; i < focusRets.length; i++) sum += focusRets[i].ret;
     var avg = sum / focusRets.length;
@@ -31457,9 +31454,15 @@ function seaComputeReturns(symbol) {
         if (focusRets[i].ret < worst.ret) worst = focusRets[i];
     }
     return {
-        symbol: symbol, returns: returns, closes: closes, focusRets: focusRets,
-        avg: avg, winRate: winRate, nYears: focusRets.length,
-        best: best, worst: worst, last: focusRets[focusRets.length - 1]
+        symbol: symbol,
+        returns: returns,
+        focusRets: focusRets,
+        avg: avg,
+        winRate: winRate,
+        nYears: focusRets.length,
+        best: best,
+        worst: worst,
+        last: focusRets[focusRets.length - 1]
     };
 }
 
@@ -31471,16 +31474,26 @@ function runSeasonalScreener() {
     setTimeout(function() {
         var results = [];
         var names = Object.keys(allInstruments || {});
+        var checked = names.length;
         for (var i = 0; i < names.length; i++) {
-            var r = seaComputeReturns(names[i]);
-            if (r) results.push(r);
+            try {
+                var r = seaComputeReturns(names[i]);
+                if (r) results.push(r);
+            } catch (e) {
+                console.warn('[Seasonal] skip', names[i], e);
+            }
         }
         _seaResults = results;
         _seaView = 'list';
         _seaDetailSymbol = null;
         if (btn) { btn.disabled = false; btn.textContent = '▶ Scan All'; }
+        console.log('[Seasonal] checked', checked, 'instruments, found', results.length, 'with focus-month history');
+        if (!results.length && body) {
+            body.innerHTML = '<div class="sea-empty">Scanned ' + checked + ' symbols but none had enough monthly history for <strong>' + SEA_MONTH_NAMES[_seaMonthIndex] + '</strong>. Try another month or check that chart data is fully loaded.</div>';
+            return;
+        }
         renderSeasonalScreener();
-    }, 30);
+    }, 40);
 }
 
 function renderSeasonalScreener() {
@@ -31518,7 +31531,7 @@ function renderSeasonalList() {
     });
     if (countsEl) countsEl.textContent = filtered.length + ' / ' + _seaResults.length + ' stocks · ' + SEA_MONTH_NAMES[_seaMonthIndex];
     if (!filtered.length) {
-        if (body) body.innerHTML = '<div class="sea-empty">No stocks match the current filters.</div>';
+        if (body) body.innerHTML = '<div class="sea-empty">No stocks match the current filters (' + _seaResults.length + ' have history). Try <strong>All</strong> or lower Min years.</div>';
         return;
     }
     var rows = '';
