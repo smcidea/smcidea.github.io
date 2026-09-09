@@ -31423,9 +31423,13 @@ function seaSetSort(btn) {
 function seaIsIndexName(name) {
     if (!name) return false;
     var n = String(name);
-    if (n === 'Index' || n === 'NEPSE' || n === 'NEPSE Index') return true;
-    if (/sub[\s_-]?index/i.test(n)) return true;
-    if (/\bIndex\b/i.test(n) && n.indexOf('-') < 0) return true;
+    if (typeof MAIN_INDICES !== 'undefined' && MAIN_INDICES.indexOf(n) >= 0) return true;
+    if (typeof SUB_INDICES !== 'undefined' && SUB_INDICES.indexOf(n) >= 0) return true;
+    if (n === 'NEPSE' || n === 'NEPSE Index') return true;
+    if (typeof getCategory === 'function') {
+        var cat = getCategory(n);
+        if (cat === 'index' || cat === 'subindex') return true;
+    }
     return false;
 }
 function seaSetUniverse(btn) {
@@ -31488,27 +31492,31 @@ function seaApplyCustom() {
     runSeasonalScreener();
 }
 function seaUniverseNames() {
-    var names = seaUniverseNames();
+    var allNames = Object.keys(allInstruments || {});
     if (_seaUniverse === 'custom') {
         if (!_seaCustomList.length) return [];
         var out = [];
         for (var i = 0; i < _seaCustomList.length; i++) {
-            var want = _seaCustomList[i];
-            if (allInstruments[want]) { out.push(want); continue; }
-            for (var k = 0; k < names.length; k++) {
-                if (names[k].toUpperCase() === String(want).toUpperCase()) { out.push(names[k]); break; }
+            var want = String(_seaCustomList[i]).toUpperCase();
+            var matched = null;
+            if (allInstruments[_seaCustomList[i]]) matched = _seaCustomList[i];
+            else {
+                for (var k = 0; k < allNames.length; k++) {
+                    if (String(allNames[k]).toUpperCase() === want) { matched = allNames[k]; break; }
+                }
             }
+            if (matched) out.push(matched);
         }
         return out;
     }
     if (_seaUniverse === 'index') {
-        return names.filter(seaIsIndexName);
+        return allNames.filter(seaIsIndexName);
     }
-    // all: stocks + index/sub-index
-    return names;
+    // all: stocks + any index/sub-index present in data
+    return allNames;
 }
 
-/** First and last close per calendar month. Uses monthKey() like BSL stats. */
+
 function seaMonthCloses(bars) {
     var first = {};
     var last = {};
@@ -31593,7 +31601,7 @@ function runSeasonalScreener() {
     if (body) body.innerHTML = '<div class="sea-empty">Computing monthly returns…</div>';
     setTimeout(function() {
         var results = [];
-        var names = Object.keys(allInstruments || {});
+        var names = seaUniverseNames();
         var checked = names.length;
         var anyMonths = 0;
         for (var i = 0; i < names.length; i++) {
