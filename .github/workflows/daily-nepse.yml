@@ -11,7 +11,7 @@ on:
     # 12:30 UTC = 18:15 Nepal time; Monday-Friday, matching the Apps Script trigger.
     # The Python updater additionally checks the NPT date and source trading date,
     # so weekday public holidays produce a clean no-op with no commit.
-    - cron: "30 12 * * 1-5"
+    - cron: "30 10 * * 1-5"
 
 permissions:
   contents: write
