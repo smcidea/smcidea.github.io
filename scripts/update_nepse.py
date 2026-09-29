@@ -18,7 +18,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
@@ -317,9 +317,18 @@ def is_nepse_scheduled_day(day) -> bool:
     return day.weekday() in {0, 1, 2, 3, 4}
 
 
-def should_publish_snapshot(snapshot: SourceSnapshot, today_npt) -> bool:
-    """Allow writes only when source data is for today's NPT trading date."""
-    return is_nepse_scheduled_day(today_npt) and snapshot.trading_date == today_npt.isoformat()
+def should_publish_snapshot(
+    snapshot: SourceSnapshot,
+    today_npt: date,
+    requested_date: date | None = None,
+) -> bool:
+    """Validate today's automatic run or an explicitly requested backfill date."""
+    expected_date = requested_date or today_npt
+
+    if requested_date is None and not is_nepse_scheduled_day(today_npt):
+        return False
+
+    return snapshot.trading_date == expected_date.isoformat()
 
 
 def main() -> int:
@@ -327,21 +336,43 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="Repository root")
     parser.add_argument("--timeout", type=int, default=30)
     parser.add_argument("--min-symbols", type=int, default=100)
+    parser.add_argument(
+        "--date",
+        dest="requested_date",
+        help="Specific NEPSE trading date to publish, in YYYY-MM-DD format",
+    )
     args = parser.parse_args()
 
     today_npt = datetime.now(NPT).date()
-    if not is_nepse_scheduled_day(today_npt):
-        print(f"No-op: {today_npt.isoformat()} is Saturday/Sunday; schedule is Monday-Friday per the existing Apps Script.")
+    try:
+        requested_date = (
+            date.fromisoformat(args.requested_date)
+            if args.requested_date
+            else None
+        )
+    except ValueError:
+        parser.error("--date must use YYYY-MM-DD format")
+
+    if requested_date is None and not is_nepse_scheduled_day(today_npt):
+        print(
+            f"No-op: {today_npt.isoformat()} is Saturday/Sunday; "
+            "schedule is Monday-Friday per the existing Apps Script."
+        )
         return 0
 
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"})
     try:
         snapshot = collect_snapshot(session, timeout=args.timeout)
-        if not should_publish_snapshot(snapshot, today_npt):
+        if not should_publish_snapshot(snapshot, today_npt, requested_date):
+            expected_date = (
+                requested_date.isoformat()
+                if requested_date
+                else today_npt.isoformat()
+            )
             print(
-                f"No-op: source latest date is {snapshot.trading_date}, not today {today_npt.isoformat()}; "
-                "likely a public holiday or no completed trading session."
+                f"No-op: source latest date is {snapshot.trading_date}, "
+                f"not requested date {expected_date}."
             )
             return 0
         if snapshot.symbol_count < args.min_symbols:
@@ -352,8 +383,9 @@ def main() -> int:
         target = args.root / "data" / "nepse_ohlc.json"
         rows = merge_row(load_rows(target), snapshot.row)
         write_outputs(args.root, rows, snapshot)
+        action = "Backfilled" if requested_date else "Updated"
         print(
-            f"Updated {snapshot.trading_date}: {snapshot.index_count} indices, "
+            f"{action} {snapshot.trading_date}: {snapshot.index_count} indices, "
             f"{snapshot.symbol_count} symbols, {len(rows)} history rows"
         )
         return 0
