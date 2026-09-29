@@ -29,6 +29,28 @@ from bs4 import BeautifulSoup
 
 MARKET_URL = "https://www.sharesansar.com/market"
 PRICE_URL = "https://www.sharesansar.com/today-share-price"
+HISTORICAL_PRICE_URL = "https://www.sharesansar.com/ajaxtodayshareprice"
+INDEX_HISTORY_URL = "https://www.sharesansar.com/index-history-data"
+HISTORICAL_INDEXES = {
+    "1": "Banking SubIndex",
+    "2": "Development Bank Index",
+    "3": "Finance Index",
+    "4": "Float Index",
+    "5": "Hotels And Tourism",
+    "6": "HydroPower Index",
+    "7": "Insurance",
+    "18": "Investment",
+    "8": "Life Insurance",
+    "9": "Manufacturing And Processing",
+    "10": "Microfinance Index",
+    "11": "Mutual Fund",
+    "12": "Index",
+    "13": "Non Life Insurance",
+    "14": "Others Index",
+    "15": "Sensitive Float Index",
+    "16": "Sensitive Index",
+    "17": "Trading Index",
+}
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 NPT = ZoneInfo("Asia/Kathmandu")
 USER_AGENT = (
@@ -194,12 +216,11 @@ def parse_price_page(price_html: str) -> dict[str, dict[str, Any]]:
     raise DataError("Individual-share price table not found")
 
 
-def collect_snapshot(session: requests.Session, timeout: int = 30) -> SourceSnapshot:
-    market_html = fetch(session, MARKET_URL, timeout)
-    price_html = fetch(session, PRICE_URL, timeout)
-    trading_date, entities = parse_market_page(market_html)
-    symbols = parse_price_page(price_html)
-
+def build_snapshot_row(
+    trading_date: str,
+    entities: dict[str, dict[str, Any]],
+    symbols: dict[str, dict[str, Any]],
+) -> SourceSnapshot:
     row: dict[str, Any] = {"Date": trading_date}
     for name in sorted(entities, key=lambda value: (value != "Index", value)):
         for metric in INDEX_METRICS:
@@ -210,7 +231,9 @@ def collect_snapshot(session: requests.Session, timeout: int = 30) -> SourceSnap
             if metric in symbols[symbol] and symbols[symbol][metric] != "":
                 row[f"{symbol}-{metric}"] = symbols[symbol][metric]
 
-    if "Index - Open" not in row or "Index - High" not in row or "Index - Low" not in row or "Index - Close" not in row:
+    if not all(
+        f"Index - {metric}" in row for metric in ("Open", "High", "Low", "Close")
+    ):
         raise DataError("NEPSE Index OHLC is incomplete")
     return SourceSnapshot(
         trading_date=trading_date,
@@ -218,6 +241,84 @@ def collect_snapshot(session: requests.Session, timeout: int = 30) -> SourceSnap
         symbol_count=len(symbols),
         index_count=len(entities),
     )
+
+
+def collect_historical_snapshot(
+    session: requests.Session,
+    trading_date: str,
+    timeout: int = 30,
+) -> SourceSnapshot:
+    """Fetch a completed historical session from Sharesansar's date-filtered endpoints."""
+    page = fetch(session, PRICE_URL, timeout)
+    soup = BeautifulSoup(page, "html.parser")
+    token = soup.find("input", {"name": "_token"})
+    if token is None or not token.get("value"):
+        raise DataError("Could not obtain Sharesansar CSRF token for historical prices")
+
+    ajax_headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": PRICE_URL,
+    }
+    response = session.post(
+        HISTORICAL_PRICE_URL,
+        data={"_token": token["value"], "sector": "all_sec", "date": trading_date},
+        headers=ajax_headers,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    symbols = parse_price_page(response.text)
+
+    entities: dict[str, dict[str, Any]] = {}
+    for index_id, name in HISTORICAL_INDEXES.items():
+        response = session.get(
+            INDEX_HISTORY_URL,
+            params={
+                "index_id": index_id,
+                "from": trading_date,
+                "to": trading_date,
+                "start": 0,
+                "length": 20,
+                "draw": 1,
+            },
+            headers=ajax_headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        try:
+            data = response.json().get("data", [])
+        except ValueError as exc:
+            raise DataError("Historical index endpoint returned non-JSON data") from exc
+        if not data:
+            continue
+        item = data[0]
+        if str(item.get("published_date", ""))[:10] != trading_date:
+            continue
+        entities[name] = {
+            "Open": number(item.get("open")),
+            "High": number(item.get("high")),
+            "Low": number(item.get("low")),
+            "Close": number(item.get("current")),
+            "Turnover": number(item.get("turnover")),
+        }
+
+    if "Index" not in entities:
+        raise NoTradingData(f"No historical NEPSE index data found for {trading_date}")
+    return build_snapshot_row(trading_date, entities, symbols)
+
+
+def collect_snapshot(
+    session: requests.Session,
+    timeout: int = 30,
+    requested_date: date | None = None,
+) -> SourceSnapshot:
+    if requested_date is not None:
+        return collect_historical_snapshot(session, requested_date.isoformat(), timeout)
+
+    market_html = fetch(session, MARKET_URL, timeout)
+    price_html = fetch(session, PRICE_URL, timeout)
+    trading_date, entities = parse_market_page(market_html)
+    symbols = parse_price_page(price_html)
+    return build_snapshot_row(trading_date, entities, symbols)
 
 
 def load_rows(path: Path) -> list[dict[str, Any]]:
@@ -363,7 +464,7 @@ def main() -> int:
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"})
     try:
-        snapshot = collect_snapshot(session, timeout=args.timeout)
+        snapshot = collect_snapshot(session, timeout=args.timeout, requested_date=requested_date)
         if not should_publish_snapshot(snapshot, today_npt, requested_date):
             expected_date = (
                 requested_date.isoformat()
