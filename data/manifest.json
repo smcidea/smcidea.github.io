@@ -3,10 +3,10 @@
     "market": "https://www.sharesansar.com/market",
     "prices": "https://www.sharesansar.com/today-share-price"
   },
-  "updated_at_utc": "2026-10-29T16:59:50Z",
-  "latest_trading_date": "2026-10-29",
-  "history_rows": 2254,
-  "latest_symbol_count": 348,
+  "updated_at_utc": "2026-10-30T16:45:06Z",
+  "latest_trading_date": "2026-10-30",
+  "history_rows": 2255,
+  "latest_symbol_count": 346,
   "latest_index_count": 18,
   "format": "SMC Toolkit wide rows: Date, Index - Open, SYMBOL-Open, ..."
 }
