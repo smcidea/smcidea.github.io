@@ -3,9 +3,9 @@
     "market": "https://www.sharesansar.com/market",
     "prices": "https://www.sharesansar.com/today-share-price"
   },
-  "updated_at_utc": "2026-11-17T12:40:18Z",
-  "latest_trading_date": "2026-11-17",
-  "history_rows": 2262,
+  "updated_at_utc": "2026-11-18T10:51:17Z",
+  "latest_trading_date": "2026-11-18",
+  "history_rows": 2263,
   "latest_symbol_count": 351,
   "latest_index_count": 18,
   "format": "SMC Toolkit wide rows: Date, Index - Open, SYMBOL-Open, ..."
