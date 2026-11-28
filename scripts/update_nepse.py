@@ -413,23 +413,50 @@ def write_outputs(root: Path, rows: list[dict[str, Any]], snapshot: SourceSnapsh
     write_json(data_dir / "manifest.json", metadata)
 
 
-def is_nepse_scheduled_day(day) -> bool:
-    """Return True for Monday–Friday, matching the existing Apps Script trigger."""
+def is_nepse_scheduled_day(day: date) -> bool:
+    """Return True for Monday–Friday, the NEPSE trading weekdays."""
     return day.weekday() in {0, 1, 2, 3, 4}
+
+
+def latest_data_date(rows: list[dict[str, Any]]) -> date | None:
+    """Return the latest valid ISO trading date already stored in history."""
+    stored_dates: list[date] = []
+    for row in rows:
+        value = str(row.get("Date", ""))[:10]
+        try:
+            stored_dates.append(date.fromisoformat(value))
+        except ValueError:
+            continue
+    return max(stored_dates, default=None)
 
 
 def should_publish_snapshot(
     snapshot: SourceSnapshot,
     today_npt: date,
     requested_date: date | None = None,
+    latest_stored_date: date | None = None,
 ) -> bool:
-    """Validate today's automatic run or an explicitly requested backfill date."""
-    expected_date = requested_date or today_npt
+    """Validate a manual date exactly, or accept a newer source trading date.
 
-    if requested_date is None and not is_nepse_scheduled_day(today_npt):
+    Automatic runs deliberately compare the source date with stored history,
+    not with today's calendar date. A delayed GitHub run can therefore catch
+    up with the latest completed session, including a Friday run starting on
+    Saturday morning.
+    """
+    try:
+        source_date = date.fromisoformat(snapshot.trading_date)
+    except (TypeError, ValueError):
         return False
 
-    return snapshot.trading_date == expected_date.isoformat()
+    if requested_date is not None:
+        return source_date == requested_date
+
+    # Do not publish a future or non-trading source date. The execution day may
+    # itself be a weekend when a scheduled weekday run was delayed past midnight.
+    if source_date > today_npt or not is_nepse_scheduled_day(source_date):
+        return False
+
+    return latest_stored_date is None or source_date > latest_stored_date
 
 
 def main() -> int:
@@ -454,35 +481,41 @@ def main() -> int:
     except ValueError:
         parser.error("--date must use YYYY-MM-DD format")
 
-    if requested_date is None and not is_nepse_scheduled_day(today_npt):
-        print(
-            f"No-op: {today_npt.isoformat()} is Saturday/Sunday; "
-            "schedule is Monday-Friday per the existing Apps Script."
-        )
-        return 0
-
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"})
     try:
+        target = args.root / "data" / "nepse_ohlc.json"
+        existing_rows = load_rows(target)
+        latest_stored_date = latest_data_date(existing_rows)
         snapshot = collect_snapshot(session, timeout=args.timeout, requested_date=requested_date)
-        if not should_publish_snapshot(snapshot, today_npt, requested_date):
-            expected_date = (
-                requested_date.isoformat()
-                if requested_date
-                else today_npt.isoformat()
-            )
-            print(
-                f"No-op: source latest date is {snapshot.trading_date}, "
-                f"not requested date {expected_date}."
-            )
+        if not should_publish_snapshot(
+            snapshot,
+            today_npt,
+            requested_date,
+            latest_stored_date,
+        ):
+            if requested_date is not None:
+                print(
+                    f"No-op: source latest date is {snapshot.trading_date}, "
+                    f"not requested date {requested_date.isoformat()}."
+                )
+            else:
+                latest_text = (
+                    latest_stored_date.isoformat()
+                    if latest_stored_date is not None
+                    else "none"
+                )
+                print(
+                    f"No-op: source date is {snapshot.trading_date}; automatic updates "
+                    f"require a newer weekday date (latest stored: {latest_text})."
+                )
             return 0
         if snapshot.symbol_count < args.min_symbols:
             raise DataError(
                 f"Only {snapshot.symbol_count} valid symbols found; refusing to publish a partial scrape "
                 f"(minimum {args.min_symbols})"
             )
-        target = args.root / "data" / "nepse_ohlc.json"
-        rows = merge_row(load_rows(target), snapshot.row)
+        rows = merge_row(existing_rows, snapshot.row)
         write_outputs(args.root, rows, snapshot)
         action = "Backfilled" if requested_date else "Updated"
         print(
