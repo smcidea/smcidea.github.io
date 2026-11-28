@@ -8,9 +8,9 @@ on:
         required: false
         type: string
   schedule:
-    # 12:30 UTC = 18:15 Nepal time; Monday-Friday, matching the Apps Script trigger.
-    # The Python updater additionally checks the NPT date and source trading date,
-    # so weekday public holidays produce a clean no-op with no commit.
+    # 10:30 UTC = 16:15 Nepal time (NPT), Monday-Friday.
+    # The updater compares ShareSansar's source date with stored history, so a
+    # delayed run can catch up after midnight without adding duplicate dates.
     - cron: "30 10 * * 1-5"
 
 permissions:
